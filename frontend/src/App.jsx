@@ -9,6 +9,16 @@ import { AdminDashboard } from "./components/AdminPortal/AdminDashboard";
 function MainContent() {
   const { user, loading, isAdmin, isAuthor } = useAuth();
   const [authorTab, setAuthorTab] = useState("books"); // 'books' | 'tickets' | 'new-ticket'
+  const [adminViewKey, setAdminViewKey] = useState(0);
+
+  const handleNavigateHome = () => {
+    if (isAuthor) {
+      setAuthorTab("books");
+    } else if (isAdmin) {
+      setAdminViewKey((k) => k + 1);
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   if (loading) {
     return (
@@ -25,10 +35,14 @@ function MainContent() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col transition-colors duration-200">
-      <Navbar activeTab={authorTab} setActiveTab={setAuthorTab} />
+      <Navbar
+        activeTab={authorTab}
+        setActiveTab={setAuthorTab}
+        onNavigateHome={handleNavigateHome}
+      />
 
       <main className="flex-1">
-        {isAdmin && <AdminDashboard currentUser={user} />}
+        {isAdmin && <AdminDashboard key={adminViewKey} currentUser={user} />}
         {isAuthor && (
           <AuthorDashboard
             activeTab={authorTab}

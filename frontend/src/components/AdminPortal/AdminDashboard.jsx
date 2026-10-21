@@ -472,7 +472,7 @@ export function AdminDashboard({ currentUser }) {
         </div>
 
         {/* Quick Status, Category, Priority & Tabs Bar */}
-        <div className="p-4 rounded-2xl glass-card border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs relative z-40 overflow-visible">
+        <div className="p-4 rounded-2xl glass-card border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs relative z-20 overflow-visible">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-1.5">
               <span className="text-slate-400 font-medium">Status:</span>
@@ -706,9 +706,9 @@ export function AdminDashboard({ currentUser }) {
 
           {activeTriageTab === "ai_intel" && (
             <div className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-30">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-20">
                 {/* Auto-Classification Box */}
-                <div className="p-5 rounded-2xl glass-card border border-slate-800 relative z-30 overflow-visible">
+                <div className="p-5 rounded-2xl glass-card border border-slate-800 relative z-20 overflow-visible">
                   <div className="flex items-center justify-between text-xs mb-2">
                     <span className="font-semibold text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5" /> Auto-Classification
@@ -736,7 +736,7 @@ export function AdminDashboard({ currentUser }) {
                 </div>
 
                 {/* Priority Scoring Box */}
-                <div className="p-5 rounded-2xl glass-card border border-slate-800 relative z-30 overflow-visible">
+                <div className="p-5 rounded-2xl glass-card border border-slate-800 relative z-20 overflow-visible">
                   <div className="flex items-center justify-between text-xs mb-2">
                     <span className="font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
                       <Flame className="w-3.5 h-3.5" /> Priority Scoring
@@ -942,7 +942,7 @@ export function AdminDashboard({ currentUser }) {
       )}
 
       {/* Filters and Search Bar */}
-      <div className="p-4 rounded-2xl glass-panel border border-slate-800 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 text-xs relative z-30">
+      <div className="p-4 rounded-2xl glass-panel border border-slate-800 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 text-xs relative z-20">
         <div className="flex flex-wrap items-center gap-2 flex-1">
           {/* Search Input */}
           <div className="relative flex-1 min-w-[200px]">

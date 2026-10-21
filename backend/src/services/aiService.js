@@ -258,25 +258,87 @@ BookLeaf Support Team`;
   };
 }
 
+function getAIConfig() {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || "";
+  let provider = process.env.AI_PROVIDER;
+  if (!provider) {
+    if (process.env.GEMINI_API_KEY) provider = "gemini";
+    else if (process.env.OPENAI_API_KEY) provider = "openai";
+    else provider = "fallback";
+  }
+  const modelName = process.env.AI_MODEL || (provider === "gemini" ? "gemini-3.5-flash" : "gpt-4o-mini");
+  return { apiKey, provider, modelName };
+}
+
 /**
- * Call Live LLM with optimized token usage and structured prompt
+ * Call Google Gemini LLM with model fallback (gemini-3.5-flash -> gemini-3.5-flash-lite)
+ */
+async function callGemini(messages, temperature = 0.3) {
+  const { apiKey } = getAIConfig();
+  if (!apiKey) throw new Error("No Gemini API Key configured");
+
+  const systemMsg = messages.find((m) => m.role === "system")?.content || "";
+  const userMsg = messages.filter((m) => m.role !== "system").map((m) => m.content).join("\n\n");
+
+  const payload = {
+    contents: [{ role: "user", parts: [{ text: userMsg }] }],
+    generationConfig: { temperature, maxOutputTokens: 1500 }
+  };
+  if (systemMsg) {
+    payload.systemInstruction = { parts: [{ text: systemMsg }] };
+  }
+
+  const models = ["gemini-3.5-flash", "gemini-3.5-flash-lite"];
+  let lastError = null;
+
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error?.message || `Gemini API HTTP ${response.status}`);
+      }
+      return {
+        text: data.candidates?.[0]?.content?.parts?.[0]?.text || "",
+        modelUsed: model,
+        usage: {
+          prompt_tokens: data.usageMetadata?.promptTokenCount || 0,
+          completion_tokens: data.usageMetadata?.candidatesTokenCount || 0,
+          total_tokens: data.usageMetadata?.totalTokenCount || 0
+        }
+      };
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
+
+/**
+ * Call OpenAI API
  */
 async function callOpenAI(messages, temperature = 0.3) {
-  if (!AI_API_KEY) {
-    throw new Error("No OpenAI API Key configured");
-  }
+  const { apiKey, modelName } = getAIConfig();
+  if (!apiKey) throw new Error("No OpenAI API Key configured");
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${AI_API_KEY}`
+      Authorization: `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: MODEL_NAME.includes("gpt") ? MODEL_NAME : "gpt-4o-mini",
+      model: modelName.includes("gpt") ? modelName : "gpt-4o-mini",
       messages,
       temperature,
-      max_tokens: 600
+      max_tokens: 1000
     })
   });
 
@@ -288,8 +350,55 @@ async function callOpenAI(messages, temperature = 0.3) {
   const data = await response.json();
   return {
     text: data.choices[0].message.content,
+    modelUsed: modelName,
     usage: data.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
   };
+}
+
+/**
+ * Unified LLM Dispatcher
+ */
+async function callLLM(messages, temperature = 0.3) {
+  const { provider, apiKey } = getAIConfig();
+  if (!apiKey) {
+    throw new Error("No LLM API Key configured");
+  }
+  if (provider === "gemini") {
+    return await callGemini(messages, temperature);
+  }
+  return await callOpenAI(messages, temperature);
+}
+
+function parseJsonFromText(rawText) {
+  if (!rawText) throw new Error("Empty text received");
+
+  // 1. Try direct parse
+  try {
+    return JSON.parse(rawText.trim());
+  } catch (_) {}
+
+  // 2. Extract content from markdown block ```json ... ```
+  const jsonBlock = rawText.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const textToScan = jsonBlock ? jsonBlock[1] : rawText;
+
+  // 3. Extract from first { to last }
+  const firstBrace = textToScan.indexOf("{");
+  const lastBrace = textToScan.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = textToScan.substring(firstBrace, lastBrace + 1);
+    try {
+      return JSON.parse(candidate);
+    } catch (_) {
+      try {
+        const sanitized = candidate
+          .replace(/(?:\r\n|\r|\n)/g, "\\n")
+          .replace(/[\u0000-\u001F]+/g, "");
+        return JSON.parse(sanitized);
+      } catch (e) {}
+    }
+  }
+
+  throw new Error("Could not parse JSON from model output");
 }
 
 /**
@@ -300,7 +409,8 @@ export const aiService = {
    * Auto-classify incoming ticket into one of the 6 canonical categories
    */
   async classifyTicket(subject, description) {
-    if (!AI_API_KEY) {
+    const { apiKey } = getAIConfig();
+    if (!apiKey) {
       return fallbackClassification(subject, description);
     }
 
@@ -324,12 +434,12 @@ Respond ONLY in valid JSON matching this schema:
   "reasoning": "<1 concise sentence explaining the classification>"
 }`;
 
-      const result = await callOpenAI([
+      const result = await callLLM([
         { role: "system", content: "You output only clean, valid JSON." },
         { role: "user", content: prompt }
       ], 0.1);
 
-      const parsed = JSON.parse(result.text.replace(/```json/g, "").replace(/```/g, "").trim());
+      const parsed = parseJsonFromText(result.text);
       if (BOOKLEAF_KNOWLEDGE_BASE.categories.includes(parsed.category)) {
         return parsed;
       }
@@ -344,7 +454,8 @@ Respond ONLY in valid JSON matching this schema:
    * Score ticket priority: Critical, High, Medium, Low
    */
   async scorePriority(subject, description, category, book) {
-    if (!AI_API_KEY) {
+    const { apiKey } = getAIConfig();
+    if (!apiKey) {
       return fallbackPriorityScore(subject, description, category);
     }
 
@@ -370,12 +481,12 @@ Respond ONLY in valid JSON:
   "reasoning": "<1 concise sentence justifying the score>"
 }`;
 
-      const result = await callOpenAI([
+      const result = await callLLM([
         { role: "system", content: "You output only clean, valid JSON." },
         { role: "user", content: prompt }
       ], 0.1);
 
-      const parsed = JSON.parse(result.text.replace(/```json/g, "").replace(/```/g, "").trim());
+      const parsed = parseJsonFromText(result.text);
       return parsed;
     } catch (err) {
       console.warn("[AI Service] Priority scoring fallback invoked:", err.message);
@@ -388,7 +499,8 @@ Respond ONLY in valid JSON:
    * Token-aware: Injects only the relevant policy slice for the category.
    */
   async draftResponse({ authorName, book, subject, description, category, priority }) {
-    if (!AI_API_KEY) {
+    const { apiKey, modelName } = getAIConfig();
+    if (!apiKey) {
       return fallbackDraftResponse({ authorName, book, subject, description, category });
     }
 
@@ -434,14 +546,14 @@ Provide your response in JSON format with two keys:
   "suggestedActions": ["<Action 1>", "<Action 2>"]
 }`;
 
-      const result = await callOpenAI([
+      const result = await callLLM([
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ], 0.3);
 
       let parsed;
       try {
-        parsed = JSON.parse(result.text.replace(/```json/g, "").replace(/```/g, "").trim());
+        parsed = parseJsonFromText(result.text);
       } catch (e) {
         parsed = { content: result.text, suggestedActions: [] };
       }
@@ -449,7 +561,7 @@ Provide your response in JSON format with two keys:
       return {
         content: parsed.content,
         suggestedActions: parsed.suggestedActions || [],
-        modelUsed: MODEL_NAME,
+        modelUsed: result.modelUsed || modelName,
         tokenUsage: {
           promptTokens: result.usage?.prompt_tokens || 0,
           completionTokens: result.usage?.completion_tokens || 0,

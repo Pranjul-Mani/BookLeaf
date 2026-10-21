@@ -12,13 +12,22 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 
-export function Navbar({ activeTab, setActiveTab }) {
+export function Navbar({ activeTab, setActiveTab, onNavigateHome }) {
   const { user, logout, quickSwitch, demoUsers, isAdmin, isAuthor } = useAuth();
   const [showSwitchMenu, setShowSwitchMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const switchMenuRef = useRef(null);
   const userMenuRef = useRef(null);
+
+  const handleLogoClick = () => {
+    if (onNavigateHome) {
+      onNavigateHome();
+    } else if (setActiveTab) {
+      setActiveTab("books");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   // Close menus when clicking anywhere else or pressing Escape
   useEffect(() => {
@@ -50,17 +59,24 @@ export function Navbar({ activeTab, setActiveTab }) {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo & Portal Identity */}
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-brand-600 to-teal-400 flex items-center justify-center shadow-lg shadow-brand-500/20">
+          {/* Logo & Portal Identity - Clickable to navigate to main page */}
+          <button
+            type="button"
+            onClick={handleLogoClick}
+            className="flex items-center gap-3 text-left focus:outline-none group cursor-pointer hover:opacity-95 transition-opacity"
+            title="Go to main dashboard"
+          >
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-brand-600 to-teal-400 flex items-center justify-center shadow-lg shadow-brand-500/20 group-hover:scale-105 group-hover:shadow-brand-500/30 transition-all">
               <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-lg tracking-tight text-white">BookLeaf</span>
+                <span className="font-bold text-lg tracking-tight text-white group-hover:text-brand-300 transition-colors">
+                  BookLeaf
+                </span>
                 <span className="text-xs px-2 py-0.5 rounded-full font-medium tracking-wide uppercase bg-slate-800 text-brand-400 border border-slate-700">
                   Publishing
                 </span>
@@ -77,7 +93,7 @@ export function Navbar({ activeTab, setActiveTab }) {
                 )}
               </div>
             </div>
-          </div>
+          </button>
 
           {/* Navigation Tabs for Authors */}
           {isAuthor && setActiveTab && (
@@ -138,7 +154,7 @@ export function Navbar({ activeTab, setActiveTab }) {
 
               {showSwitchMenu && (
                 <div
-                  className="navbar-dropdown absolute right-0 mt-2 w-72 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl py-2 z-50 text-xs"
+                  className="navbar-dropdown absolute right-0 mt-2 w-72 max-h-[80vh] overflow-y-auto rounded-xl bg-slate-900 border border-slate-700 shadow-2xl py-2 z-50 text-xs"
                 >
                   <div className="px-3 py-1.5 border-b border-slate-800 text-[11px] font-bold text-black dark:text-slate-300 uppercase tracking-wider bg-slate-100/90 dark:bg-slate-800/50">
                     Operations Team (Admins)

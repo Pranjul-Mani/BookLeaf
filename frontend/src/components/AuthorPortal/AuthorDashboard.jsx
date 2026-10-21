@@ -24,7 +24,8 @@ import {
   Printer,
   Calendar,
   Layers,
-  ArrowUpRight
+  ArrowUpRight,
+  X
 } from "lucide-react";
 
 export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
@@ -41,7 +42,7 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
   const [description, setDescription] = useState("");
   const [attachments, setAttachments] = useState([]);
   const [submitting, setSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState("");
+  const [createdTicketModal, setCreatedTicketModal] = useState(null);
 
   const [readCounts, setReadCounts] = useState(() => {
     try {
@@ -65,6 +66,12 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
       setReadCounts({});
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    if (activeTab === "books") {
+      setSelectedTicketId(null);
+    }
+  }, [activeTab]);
 
   const handleOpenTicket = (ticketId) => {
     const ticket = tickets.find((t) => t._id === ticketId);
@@ -171,7 +178,6 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
     if (!subject.trim() || !description.trim() || submitting) return;
 
     setSubmitting(true);
-    setSubmitSuccess("");
     try {
       const data = await api.createTicket({
         book_id: selectedBookId,
@@ -180,17 +186,14 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
         attachments
       });
 
-      setSubmitSuccess(`Ticket #${data.ticket.ticket_number} created! Classified under "${data.ticket.category}".`);
+      // Clear the form fields
       setSubject("");
       setDescription("");
       setAttachments([]);
       setSelectedBookId("General / Account Level");
 
-      // Reload tickets and switch to tickets tab
-      setTimeout(() => {
-        setActiveTab("tickets");
-        handleOpenTicket(data.ticket._id);
-      }, 1200);
+      // Open dynamic confirmation popup
+      setCreatedTicketModal(data.ticket);
     } catch (err) {
       alert("Error submitting query: " + err.message);
     } finally {
@@ -200,6 +203,21 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
 
   const handleSimulatedFileUpload = (e) => {
     const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const simulated = files.map((f) => ({
+      name: f.name,
+      size: f.size,
+      file_type: f.type || "application/octet-stream"
+    }));
+    setAttachments((prev) => [...prev, ...simulated]);
+    e.target.value = "";
+  };
+
+  const handleDropFiles = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const files = Array.from(e.dataTransfer.files || []);
+    if (!files.length) return;
     const simulated = files.map((f) => ({
       name: f.name,
       size: f.size,
@@ -476,13 +494,6 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
             </div>
           </div>
 
-          {submitSuccess && (
-            <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-              <span>{submitSuccess}</span>
-            </div>
-          )}
-
           <form onSubmit={handleSubmitQuery} className="space-y-5">
             <div>
               <label className="block text-xs font-semibold text-slate-300  tracking-wider mb-2">
@@ -532,24 +543,31 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
               />
             </div>
 
-            {/* File Attachment Support (UI Only per specification) */}
+            {/* File Attachment Support */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300  tracking-wider mb-2">
+              <label className="block text-xs font-semibold text-slate-300 tracking-wider mb-2">
                 Attachments (Optional - Proof photos, statements, invoices)
               </label>
-              <div className="border-2 border-dashed border-slate-700 hover:border-brand-500/50 rounded-xl p-5 text-center transition-colors bg-slate-900/40">
-                <Upload className="w-6 h-6 text-slate-400 mx-auto mb-2" />
-                <label className="cursor-pointer text-xs font-medium text-brand-400 hover:text-brand-300">
-                  <span>Click to select files</span>
-                  <input
-                    type="file"
-                    multiple
-                    onChange={handleSimulatedFileUpload}
-                    className="hidden"
-                  />
-                </label>
-                <p className="text-[11px] text-slate-400 mt-1">PNG, JPG, PDF up to 10MB (UI simulation)</p>
-              </div>
+              <label
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onDrop={handleDropFiles}
+                className="border-2 border-dashed border-slate-700 hover:border-brand-500/70 hover:bg-slate-900/60 rounded-xl p-6 text-center transition-all bg-slate-900/40 cursor-pointer block group select-none"
+              >
+                <Upload className="w-6 h-6 text-slate-400 group-hover:text-brand-400 group-hover:scale-110 transition-all mx-auto mb-2" />
+                <span className="text-xs font-medium text-brand-400 group-hover:text-brand-300 block">
+                  Click to upload files
+                </span>
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleSimulatedFileUpload}
+                  className="hidden"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">PNG, JPG, PDF up to 10MB (Click anywhere or drag & drop)</p>
+              </label>
 
               {attachments.length > 0 && (
                 <div className="mt-3 space-y-1.5">
@@ -720,6 +738,87 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
             )}
           </div>
         )
+      )}
+
+      {/* Dynamic Ticket Created Popup Modal */}
+      {createdTicketModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-slate-900 border border-slate-700/80 rounded-2xl p-6 shadow-2xl shadow-brand-950/50 text-center animate-in zoom-in-95 duration-200">
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => {
+                setCreatedTicketModal(null);
+                setActiveTab("tickets");
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Glowing Icon */}
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/10">
+              <CheckCircle2 className="w-9 h-9" />
+            </div>
+
+            {/* Dynamic Ticket Raised Title & Dynamic Category */}
+            <h3 className="text-xl font-bold text-white mb-2">
+              Ticket #{createdTicketModal.ticket_number} Raised!
+            </h3>
+            
+            <p className="text-sm text-slate-300 mb-5">
+              Classified under <span className="font-semibold text-emerald-400">"{createdTicketModal.category}"</span>
+            </p>
+
+            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 mb-6 text-left space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Assigned Priority:</span>
+                <span className={`px-2 py-0.5 rounded-full font-medium ${
+                  createdTicketModal.priority === "Critical" ? "bg-rose-500/10 text-rose-400 border border-rose-500/30" :
+                  createdTicketModal.priority === "High" ? "bg-amber-500/10 text-amber-400 border border-amber-500/30" :
+                  createdTicketModal.priority === "Medium" ? "bg-blue-500/10 text-blue-400 border border-blue-500/30" :
+                  "bg-slate-800 text-slate-400"
+                }`}>
+                  {createdTicketModal.priority} Priority
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Initial Status:</span>
+                <span className="text-emerald-400 font-medium">Open & AI-Triaged</span>
+              </div>
+              <div className="text-[11px] text-slate-400 pt-1.5 border-t border-slate-800/80">
+                Our operations team has received your ticket and an initial response draft has been prepared.
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const t = createdTicketModal;
+                  setCreatedTicketModal(null);
+                  setActiveTab("tickets");
+                  handleOpenTicket(t._id);
+                }}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-lg shadow-brand-600/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>View Ticket & Chat</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCreatedTicketModal(null);
+                  setActiveTab("books");
+                }}
+                className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-all cursor-pointer"
+              >
+                Back to My Books
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
