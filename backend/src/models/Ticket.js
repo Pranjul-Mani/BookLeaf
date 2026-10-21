@@ -106,21 +106,12 @@ const ticketSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: [
-        "Royalty & Payments",
-        "ISBN & Metadata Issues",
-        "Printing & Quality",
-        "Distribution & Availability",
-        "Book Status & Production Updates",
-        "General Inquiry"
-      ],
-      required: true,
+      default: null,
       index: true
     },
     priority: {
       type: String,
-      enum: ["Critical", "High", "Medium", "Low"],
-      default: "Medium",
+      default: null,
       index: true
     },
     status: {

@@ -80,7 +80,7 @@ const REPLY_STATUS_OPTIONS = [
   { value: "Closed", label: "Closed", dotColor: "#94a3b8" }
 ];
 
-export function AdminDashboard({ currentUser }) {
+export function AdminDashboard({ currentUser, setToast: externalSetToast }) {
   const [tickets, setTickets] = useState([]);
   const [stats, setStats] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -88,6 +88,22 @@ export function AdminDashboard({ currentUser }) {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [previewAttachment, setPreviewAttachment] = useState(null);
   const [triageModalOpen, setTriageModalOpen] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const notify = (msg) => {
+    if (externalSetToast) {
+      externalSetToast(msg);
+    } else {
+      setToast(msg);
+    }
+  };
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("All");
@@ -310,8 +326,9 @@ export function AdminDashboard({ currentUser }) {
       setSelectedTicket(data.ticket);
       setReplyMessage("");
       setActiveTriageTab("conversation");
+      notify("Message sent successfully!");
     } catch (err) {
-      alert("Failed to send response: " + err.message);
+      notify("Failed to send response: " + (err.message || "Error"));
     } finally {
       setSubmittingReply(false);
     }
@@ -430,12 +447,16 @@ export function AdminDashboard({ currentUser }) {
               <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${getStatusStyle(selectedTicket.status)}`}>
                 {selectedTicket.status}
               </span>
-              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${getPriorityStyle(selectedTicket.priority)}`}>
-                Priority: {selectedTicket.priority}
-              </span>
-              <span className="text-xs px-2.5 py-1 rounded-full bg-slate-900 text-slate-300 border border-slate-800 font-medium">
-                {selectedTicket.category}
-              </span>
+              {selectedTicket.priority && (
+                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${getPriorityStyle(selectedTicket.priority)}`}>
+                  Priority: {selectedTicket.priority}
+                </span>
+              )}
+              {selectedTicket.category && (
+                <span className="text-xs px-2.5 py-1 rounded-full bg-slate-900 text-slate-300 border border-slate-800 font-medium">
+                  {selectedTicket.category}
+                </span>
+              )}
             </div>
 
             {selectedTicket.assigned_to?.name && (
@@ -687,26 +708,48 @@ export function AdminDashboard({ currentUser }) {
                                 <span>Attachments ({msg.attachments.length})</span>
                               </div>
                               <div className="flex flex-wrap gap-2">
-                                {msg.attachments.map((att, aIdx) => (
-                                  <div
-                                    key={aIdx}
-                                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs text-slate-300"
-                                  >
-                                    <span className="truncate max-w-[150px] font-medium">{att.name}</span>
-                                    <span className="text-[10px] text-slate-500 font-mono">
-                                      {att.size ? `${Math.round(att.size / 1024)} KB` : ""}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => setPreviewAttachment(att)}
-                                      className="p-1 rounded hover:bg-brand-50 dark:hover:bg-slate-800 text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors cursor-pointer"
-                                      title="View attachment"
-                                      aria-label="View attachment"
+                                {msg.attachments.map((att, aIdx) => {
+                                  const isImg =
+                                    att.file_type?.startsWith("image/") ||
+                                    (att.url && att.url.startsWith("data:image/")) ||
+                                    /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name || "");
+                                  return (
+                                    <div
+                                      key={aIdx}
+                                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs text-slate-300"
                                     >
-                                      <Eye className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                ))}
+                                      {isImg && att.url ? (
+                                        <div
+                                          onClick={() => setPreviewAttachment(att)}
+                                          className="relative w-7 h-7 rounded-md overflow-hidden border border-slate-300 dark:border-slate-700 shrink-0 cursor-pointer group/thumb shadow-sm"
+                                          title="Click to preview image"
+                                        >
+                                          <img
+                                            src={att.url}
+                                            alt={att.name}
+                                            className="w-full h-full object-cover group-hover/thumb:scale-110 transition-transform"
+                                          />
+                                          <div className="absolute inset-0 bg-brand-950/40 dark:bg-black/50 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity">
+                                            <Eye className="w-3 h-3 text-white" />
+                                          </div>
+                                        </div>
+                                      ) : null}
+                                      <span className="truncate max-w-[150px] font-medium">{att.name}</span>
+                                      <span className="text-[10px] text-slate-500 font-mono">
+                                        {att.size ? `${Math.round(att.size / 1024)} KB` : ""}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setPreviewAttachment(att)}
+                                        className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-300 hover:bg-brand-50 dark:hover:bg-brand-500/15 transition-colors cursor-pointer"
+                                        title="View attachment"
+                                        aria-label="View attachment"
+                                      >
+                                        <Eye className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -1152,12 +1195,16 @@ export function AdminDashboard({ currentUser }) {
                     <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${getStatusStyle(t.status)}`}>
                       {t.status}
                     </span>
-                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${getPriorityStyle(t.priority)}`}>
-                      {t.priority}
-                    </span>
-                    <span className="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800 font-medium">
-                      {t.category}
-                    </span>
+                    {t.priority && (
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${getPriorityStyle(t.priority)}`}>
+                        {t.priority}
+                      </span>
+                    )}
+                    {t.category && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800 font-medium">
+                        {t.category}
+                      </span>
+                    )}
 
                     {isUnresolvedOld && (
                       <span className="text-[10px] font-bold bg-rose-600 text-white px-2 py-0.5 rounded-full animate-pulse flex items-center gap-1 shadow-sm shadow-rose-600/40">
@@ -1231,6 +1278,30 @@ export function AdminDashboard({ currentUser }) {
         onClose={() => setPreviewAttachment(null)}
         attachment={previewAttachment}
       />
+
+      {/* Fallback Toast Notification */}
+      {toast && !externalSetToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-20 right-6 z-[99999] flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-emerald-600 text-white shadow-2xl shadow-emerald-950/40 border border-emerald-400/40 transition-all duration-300 pointer-events-auto"
+        >
+          <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5 text-white" />
+          </div>
+          <span className="text-sm font-semibold tracking-wide pr-2">
+            {toast}
+          </span>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/20 transition-colors cursor-pointer shrink-0 ml-auto"
+            aria-label="Close notification"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,15 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Navbar } from "./components/Navbar";
 import { LoginPage } from "./components/LoginPage";
 import { AuthorDashboard } from "./components/AuthorPortal/AuthorDashboard";
 import { AdminDashboard } from "./components/AdminPortal/AdminDashboard";
+import { CheckCircle2, X } from "lucide-react";
 
 function MainContent() {
   const { user, loading, isAdmin, isAuthor } = useAuth();
   const [authorTab, setAuthorTab] = useState("books"); // 'books' | 'tickets' | 'new-ticket'
   const [adminViewKey, setAdminViewKey] = useState(0);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const handleNavigateHome = () => {
     if (isAuthor) {
@@ -42,15 +51,40 @@ function MainContent() {
       />
 
       <main className="flex-1">
-        {isAdmin && <AdminDashboard key={adminViewKey} currentUser={user} />}
+        {isAdmin && <AdminDashboard key={adminViewKey} currentUser={user} setToast={setToast} />}
         {isAuthor && (
           <AuthorDashboard
             activeTab={authorTab}
             setActiveTab={setAuthorTab}
             currentUser={user}
+            setToast={setToast}
           />
         )}
       </main>
+
+      {/* Global Toast Notification */}
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-20 right-6 z-[99999] flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-emerald-600 text-white shadow-2xl shadow-emerald-950/40 border border-emerald-400/40 transition-all duration-300 pointer-events-auto"
+        >
+          <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5 text-white" />
+          </div>
+          <span className="text-sm font-semibold tracking-wide pr-2">
+            {toast}
+          </span>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/20 transition-colors cursor-pointer shrink-0 ml-auto"
+            aria-label="Close notification"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Footer - Hidden for admin login */}
       {!isAdmin && (

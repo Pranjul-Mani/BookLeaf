@@ -31,24 +31,6 @@ export async function createTicket(req, res) {
       }
     }
 
-    // Step 1: AI Auto-Classification
-    const classification = await aiService.classifyTicket(subject, description);
-    const category = classification.category;
-
-    // Step 2: AI Priority Scoring
-    const priorityResult = await aiService.scorePriority(subject, description, category, linkedBook);
-    const priority = priorityResult.priority;
-
-    // Step 3: AI Draft Response Pre-generation
-    const draftResponse = await aiService.draftResponse({
-      authorName: author.name,
-      book: linkedBook,
-      subject,
-      description,
-      category,
-      priority
-    });
-
     const ticketNumber = await getNextTicketNumber();
 
     const ticket = new Ticket({
@@ -62,28 +44,9 @@ export async function createTicket(req, res) {
       book_title: bookTitle,
       subject: subject.trim(),
       description: description.trim(),
-      category,
-      priority,
+      category: null,
+      priority: null,
       status: "Open",
-      ai_classification: {
-        category: classification.category,
-        confidence: classification.confidence,
-        reasoning: classification.reasoning,
-        classified_at: new Date()
-      },
-      ai_priority_score: {
-        priority: priorityResult.priority,
-        urgency_score: priorityResult.urgencyScore,
-        reasoning: priorityResult.reasoning,
-        scored_at: new Date()
-      },
-      ai_draft_response: {
-        content: draftResponse.content,
-        suggested_actions: draftResponse.suggestedActions,
-        model_used: draftResponse.modelUsed,
-        token_usage: draftResponse.tokenUsage,
-        generated_at: new Date()
-      },
       attachments: attachments || [],
       messages: [
         {
@@ -99,7 +62,7 @@ export async function createTicket(req, res) {
 
     await ticket.save();
 
-    // Broadcast real-time ticket creation event
+    // Broadcast real-time ticket creation event immediately
     try {
       const io = getIO();
       if (io) {
@@ -109,11 +72,64 @@ export async function createTicket(req, res) {
       console.warn("Socket broadcast error:", sockErr.message);
     }
 
-    return res.status(201).json({
+    // Respond immediately so user does not wait
+    res.status(201).json({
       success: true,
       message: "Support ticket created successfully",
       ticket
     });
+
+    // Run AI classification, priority scoring & draft generation asynchronously in background
+    (async () => {
+      try {
+        const classification = await aiService.classifyTicket(subject, description);
+        const category = classification.category;
+
+        const priorityResult = await aiService.scorePriority(subject, description, category, linkedBook);
+        const priority = priorityResult.priority;
+
+        const draftResponse = await aiService.draftResponse({
+          authorName: author.name,
+          book: linkedBook,
+          subject,
+          description,
+          category,
+          priority
+        });
+
+        // Update ticket with AI results
+        ticket.category = category;
+        ticket.priority = priority;
+        ticket.ai_classification = {
+          category: classification.category,
+          confidence: classification.confidence,
+          reasoning: classification.reasoning,
+          classified_at: new Date()
+        };
+        ticket.ai_priority_score = {
+          priority: priorityResult.priority,
+          urgency_score: priorityResult.urgencyScore,
+          reasoning: priorityResult.reasoning,
+          scored_at: new Date()
+        };
+        ticket.ai_draft_response = {
+          content: draftResponse.content,
+          suggested_actions: draftResponse.suggestedActions,
+          model_used: draftResponse.modelUsed,
+          token_usage: draftResponse.tokenUsage,
+          generated_at: new Date()
+        };
+
+        await ticket.save();
+
+        const io = getIO();
+        if (io) {
+          io.emit("ticket:updated", { ticket });
+        }
+      } catch (bgErr) {
+        console.error("Background AI classification error for ticket", ticketNumber, bgErr);
+      }
+    })();
   } catch (err) {
     console.error("createTicket error:", err);
     return res.status(500).json({

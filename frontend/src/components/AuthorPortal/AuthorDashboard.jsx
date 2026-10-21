@@ -28,11 +28,12 @@ import {
   X,
   Eye,
   Trash2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Send
 } from "lucide-react";
 import { ImagePreviewModal } from "../common/ImagePreviewModal";
 
-export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
+export function AuthorDashboard({ activeTab, setActiveTab, currentUser, setToast: externalSetToast }) {
   const [books, setBooks] = useState([]);
   const [summary, setSummary] = useState(null);
   const [tickets, setTickets] = useState([]);
@@ -45,9 +46,13 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [attachments, setAttachments] = useState([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [createdTicketModal, setCreatedTicketModal] = useState(null);
   const [previewAttachment, setPreviewAttachment] = useState(null);
+
+  const notify = (msg) => {
+    if (externalSetToast) {
+      externalSetToast(msg);
+    }
+  };
 
   const [readCounts, setReadCounts] = useState(() => {
     try {
@@ -180,29 +185,41 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
 
   const handleSubmitQuery = async (e) => {
     e.preventDefault();
-    if (!subject.trim() || !description.trim() || submitting) return;
+    const cleanSubject = subject.trim();
+    const cleanDescription = description.trim();
+    if (!cleanSubject || !cleanDescription) {
+      notify("Please provide both a subject and a description.");
+      return;
+    }
 
-    setSubmitting(true);
+    const payload = {
+      book_id: selectedBookId,
+      subject: cleanSubject,
+      description: cleanDescription,
+      attachments
+    };
+
+    // Instantly clear form inputs
+    setSubject("");
+    setDescription("");
+    setAttachments([]);
+    setSelectedBookId("General / Account Level");
+
+    // Instantly redirect to Support Tickets view
+    setActiveTab("tickets");
+    setSelectedTicketId(null);
+
+    // Instantly trigger toast notification
+    notify("Ticket raised successfully! Support team has been notified.");
+
+    // Create ticket in backend (AI runs asynchronously in background)
     try {
-      const data = await api.createTicket({
-        book_id: selectedBookId,
-        subject: subject.trim(),
-        description: description.trim(),
-        attachments
-      });
-
-      // Clear the form fields
-      setSubject("");
-      setDescription("");
-      setAttachments([]);
-      setSelectedBookId("General / Account Level");
-
-      // Open dynamic confirmation popup
-      setCreatedTicketModal(data.ticket);
+      const data = await api.createTicket(payload);
+      if (data?.ticket) {
+        setTickets((prev) => [data.ticket, ...prev.filter((t) => t._id !== data.ticket._id)]);
+      }
     } catch (err) {
-      alert("Error submitting query: " + err.message);
-    } finally {
-      setSubmitting(false);
+      notify("Error raising ticket: " + (err.message || "Failed to submit"));
     }
   };
 
@@ -670,20 +687,10 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
 
             <button
               type="submit"
-              disabled={submitting}
-              className="w-full py-3 px-4 rounded-xl font-semibold text-sm bg-gradient-to-r from-brand-600 to-teal-500 hover:from-brand-500 hover:to-teal-400 text-white shadow-lg shadow-brand-500/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              className="w-full py-3.5 px-4 rounded-xl font-semibold text-sm bg-gradient-to-r from-brand-600 to-teal-500 hover:from-brand-500 hover:to-teal-400 text-white shadow-lg shadow-brand-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer hover:shadow-brand-500/30 active:scale-[0.99]"
             >
-              {submitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Submitting & AI Classifying...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Submit Support Ticket</span>
-                </>
-              )}
+              <Send className="w-4 h-4" />
+              <span>Submit Ticket</span>
             </button>
           </form>
         </div>
@@ -765,9 +772,21 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
                         <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${statusStyles[t.status] || statusStyles.Open}`}>
                           {t.status}
                         </span>
-                        <span className="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
-                          {t.category}
-                        </span>
+                        {t.category && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800 animate-in fade-in">
+                            {t.category}
+                          </span>
+                        )}
+                        {t.priority && (
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium border animate-in fade-in ${
+                            t.priority === "Critical" ? "bg-rose-500/10 text-rose-400 border border-rose-500/30" :
+                            t.priority === "High" ? "bg-amber-500/10 text-amber-400 border border-amber-500/30" :
+                            t.priority === "Medium" ? "bg-blue-500/10 text-blue-400 border border-blue-500/30" :
+                            "bg-slate-800 text-slate-400 border-slate-700"
+                          }`}>
+                            {t.priority} Priority
+                          </span>
+                        )}
                       </div>
 
                       <h4 className="text-base font-bold text-white group-hover:text-brand-300 transition-colors">
@@ -810,87 +829,6 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
             )}
           </div>
         )
-      )}
-
-      {/* Dynamic Ticket Created Popup Modal */}
-      {createdTicketModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md bg-slate-900 border border-slate-700/80 rounded-2xl p-6 shadow-2xl shadow-brand-950/50 text-center animate-in zoom-in-95 duration-200">
-            {/* Close button */}
-            <button
-              type="button"
-              onClick={() => {
-                setCreatedTicketModal(null);
-                setActiveTab("tickets");
-              }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Glowing Icon */}
-            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/10">
-              <CheckCircle2 className="w-9 h-9" />
-            </div>
-
-            {/* Dynamic Ticket Raised Title & Dynamic Category */}
-            <h3 className="text-xl font-bold text-white mb-2">
-              Ticket #{createdTicketModal.ticket_number} Raised!
-            </h3>
-            
-            <p className="text-sm text-slate-300 mb-5">
-              Classified under <span className="font-semibold text-emerald-400">"{createdTicketModal.category}"</span>
-            </p>
-
-            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 mb-6 text-left space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Assigned Priority:</span>
-                <span className={`px-2 py-0.5 rounded-full font-medium ${
-                  createdTicketModal.priority === "Critical" ? "bg-rose-500/10 text-rose-400 border border-rose-500/30" :
-                  createdTicketModal.priority === "High" ? "bg-amber-500/10 text-amber-400 border border-amber-500/30" :
-                  createdTicketModal.priority === "Medium" ? "bg-blue-500/10 text-blue-400 border border-blue-500/30" :
-                  "bg-slate-800 text-slate-400"
-                }`}>
-                  {createdTicketModal.priority} Priority
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Initial Status:</span>
-                <span className="text-emerald-400 font-medium">Open & AI-Triaged</span>
-              </div>
-              <div className="text-[11px] text-slate-400 pt-1.5 border-t border-slate-800/80">
-                Our operations team has received your ticket and an initial response draft has been prepared.
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  const t = createdTicketModal;
-                  setCreatedTicketModal(null);
-                  setActiveTab("tickets");
-                  handleOpenTicket(t._id);
-                }}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-lg shadow-brand-600/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span>View Ticket & Chat</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCreatedTicketModal(null);
-                  setActiveTab("books");
-                }}
-                className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-all cursor-pointer"
-              >
-                Back to My Books
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Lightbox Image Preview Modal */}

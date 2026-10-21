@@ -88,10 +88,25 @@
         "summary": "Admin Catalog Exploration",
         "parameters": [
           { "name": "search", "in": "query", "schema": { "type": "string" } },
-          { "name": "status", "in": "query", "schema": { "type": "string" } }
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "author_id", "in": "query", "schema": { "type": "string" } }
         ],
         "responses": {
           "200": { "description": "Catalog books list" }
+        }
+      }
+    },
+    "/books/{id}": {
+      "get": {
+        "summary": "Get Book by ID",
+        "description": "Returns book details. Authors can only access their own books; Admins can access any book.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Book details returned" },
+          "403": { "description": "Forbidden if author does not own this book record" },
+          "404": { "description": "Book not found" }
         }
       }
     },

@@ -131,83 +131,67 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => handleQuickSelect("test@bookleaf.com")}
-                className="p-2.5 rounded-xl bg-slate-900/90 border border-amber-500/30 hover:border-amber-400 text-left transition-all group"
+                className="login-prefill-btn p-2.5 rounded-xl bg-slate-900/90 border border-amber-500/40 hover:border-amber-500 text-left transition-all group"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-amber-300 group-hover:text-amber-200">
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-300 group-hover:text-amber-800 dark:group-hover:text-amber-200">
                     Test User
                   </span>
-                  <span className="text-[10px] font-mono bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30">
+                  <span className="text-[10px] font-mono bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-500/30 font-semibold">
                     Admin (Full Access)
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">test@bookleaf.com • password123</div>
+                <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">test@bookleaf.com • password123</div>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleQuickSelect("rohit.kapoor@email.com")}
-                className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-brand-500 text-left transition-all group"
+                className="login-prefill-btn p-2.5 rounded-xl bg-slate-900/90 border border-slate-200 dark:border-slate-800 hover:border-brand-500 dark:hover:border-brand-500 text-left transition-all group"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white group-hover:text-brand-300">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-300">
                     Rohit Kapoor
                   </span>
-                  <span className="text-[10px] font-mono bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200 dark:border-transparent">
                     AUTH002
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">2 books • Pending royalties query</div>
+                <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">2 books • Pending royalties query</div>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleQuickSelect("priya.sharma@email.com")}
-                className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-brand-500 text-left transition-all group"
+                className="login-prefill-btn p-2.5 rounded-xl bg-slate-900/90 border border-slate-200 dark:border-slate-800 hover:border-brand-500 dark:hover:border-brand-500 text-left transition-all group"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white group-hover:text-brand-300">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-300">
                     Priya Sharma
                   </span>
-                  <span className="text-[10px] font-mono bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200 dark:border-transparent">
                     AUTH001
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">2 books • Literary Fiction</div>
+                <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">2 books • Literary Fiction</div>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleQuickSelect("sneha.kulkarni@email.com")}
-                className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-brand-500 text-left transition-all group"
+                className="login-prefill-btn p-2.5 rounded-xl bg-slate-900/90 border border-slate-200 dark:border-slate-800 hover:border-brand-500 dark:hover:border-brand-500 text-left transition-all group"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-white group-hover:text-brand-300">
+                  <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-300">
                     Sneha Kulkarni
                   </span>
-                  <span className="text-[10px] font-mono bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200 dark:border-transparent">
                     AUTH007
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">3 books • Cover Design in prod.</div>
+                <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">3 books • Cover Design in prod.</div>
               </button>
             </div>
-          </div>
-        </div>
-
-        {/* Feature badges */}
-        <div className="mt-6 grid grid-cols-3 gap-3 text-center text-xs text-slate-400">
-          <div className="p-2.5 rounded-xl bg-slate-900/40 border border-slate-800/80">
-            <div className="font-semibold text-slate-200">Socket.io</div>
-            <div className="text-[11px] text-slate-400">Real-Time Sync</div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-slate-900/40 border border-slate-800/80">
-            <div className="font-semibold text-slate-200">AI Triage</div>
-            <div className="text-[11px] text-slate-400">6-Class & Priority</div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-slate-900/40 border border-slate-800/80">
-            <div className="font-semibold text-slate-200">BookLeaf KB</div>
-            <div className="text-[11px] text-slate-400">Zero Corporate Fluff</div>
           </div>
         </div>
       </div>

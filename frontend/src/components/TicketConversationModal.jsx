@@ -6,13 +6,8 @@ import {
   Send,
   User,
   ShieldCheck,
-  Clock,
-  CheckCircle,
-  AlertTriangle,
   Paperclip,
   BookMarked,
-  Sparkles,
-  Tag,
   Eye
 } from "lucide-react";
 import { formatDate } from "../utils/dateUtils";
@@ -157,7 +152,7 @@ export function TicketConversationModal({ ticketId, onClose, currentUser }) {
                 {ticket?.ticket_number || "TCK"}
               </span>
               {ticket && getStatusBadge(ticket.status)}
-              {ticket && getPriorityBadge(ticket.priority)}
+              {ticket && ticket.priority && getPriorityBadge(ticket.priority)}
               {ticket?.category && (
                 <span className="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800 font-medium">
                   {ticket.category}
@@ -242,28 +237,63 @@ export function TicketConversationModal({ ticketId, onClose, currentUser }) {
 
                       {/* Attachments UI with View Eye Icon */}
                       {msg.attachments && msg.attachments.length > 0 && (
-                        <div className="mt-3 pt-2 border-t border-slate-700/60 space-y-1">
-                          {msg.attachments.map((att, aIdx) => (
-                            <div
-                              key={aIdx}
-                              className="flex items-center gap-2 text-xs bg-slate-800/80 px-2.5 py-1.5 rounded-lg text-slate-300"
-                            >
-                              <Paperclip className="w-3.5 h-3.5 text-slate-400" />
-                              <span className="font-medium truncate">{att.name}</span>
-                              <span className="text-[10px] text-slate-500 ml-auto font-mono">
-                                {att.size ? `${Math.round(att.size / 1024)} KB` : "Attached"}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setPreviewAttachment(att)}
-                                className="p-1 rounded hover:bg-slate-700 text-brand-300 hover:text-white transition-colors cursor-pointer"
-                                title="View attachment"
-                                aria-label="View attachment"
+                        <div className={`mt-3 pt-2.5 border-t ${isAdminMsg ? 'border-slate-200 dark:border-slate-800' : 'border-white/20'} space-y-1.5`}>
+                          {msg.attachments.map((att, aIdx) => {
+                            const isImg =
+                              att.file_type?.startsWith("image/") ||
+                              (att.url && att.url.startsWith("data:image/")) ||
+                              /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name || "");
+                            return (
+                              <div
+                                key={aIdx}
+                                className={`flex items-center gap-2.5 p-2 rounded-xl text-xs transition-all ${
+                                  isAdminMsg
+                                    ? "bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 text-slate-800 dark:text-slate-200"
+                                    : "bg-white/95 dark:bg-slate-900/90 border border-white/30 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 shadow-sm"
+                                }`}
                               >
-                                <Eye className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ))}
+                                {isImg && att.url ? (
+                                  <div
+                                    onClick={() => setPreviewAttachment(att)}
+                                    className="relative w-8 h-8 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 shrink-0 cursor-pointer group/thumb shadow-sm"
+                                    title="Click to preview image"
+                                  >
+                                    <img
+                                      src={att.url}
+                                      alt={att.name}
+                                      className="w-full h-full object-cover group-hover/thumb:scale-110 transition-transform"
+                                    />
+                                    <div className="absolute inset-0 bg-brand-950/40 dark:bg-black/50 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity">
+                                      <Eye className="w-3.5 h-3.5 text-white" />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-brand-600 dark:text-brand-400 shrink-0">
+                                    <Paperclip className="w-3.5 h-3.5" />
+                                  </div>
+                                )}
+
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-semibold block truncate text-slate-900 dark:text-white">
+                                    {att.name}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono block">
+                                    {att.size ? `${Math.round(att.size / 1024)} KB` : "Attached"} {isImg ? "• Image" : "• Document"}
+                                  </span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewAttachment(att)}
+                                  className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-300 hover:bg-brand-50 dark:hover:bg-brand-500/15 transition-colors cursor-pointer shrink-0"
+                                  title="View attachment"
+                                  aria-label="View attachment"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
