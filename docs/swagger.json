@@ -1,0 +1,237 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "BookLeaf Publishing - Author Support & Communication API",
+    "version": "1.0.0",
+    "description": "RESTful API providing role-based author dashboard, books catalog, AI-assisted ticket triage, real-time messaging, and admin operations."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000/api",
+      "description": "Local Development Server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "responses": {
+          "200": { "description": "Server and database status" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "User Authentication (Author or Admin)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Login successful, returns JWT token and user profile" },
+          "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "summary": "Get Current Authenticated User Profile",
+        "responses": {
+          "200": { "description": "User profile data" }
+        }
+      }
+    },
+    "/auth/demo-users": {
+      "get": {
+        "summary": "List sample author and admin accounts for 1-click test login",
+        "responses": {
+          "200": { "description": "List of demo accounts" }
+        }
+      }
+    },
+    "/books/my-books": {
+      "get": {
+        "summary": "Get Books Belonging to Logged-in Author",
+        "description": "Includes MRP, copies sold, royalty earned, paid, and pending metrics with aggregated dashboard stats",
+        "responses": {
+          "200": { "description": "Books array and aggregated summary stats" }
+        }
+      }
+    },
+    "/books/all": {
+      "get": {
+        "summary": "Admin Catalog Exploration",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Catalog books list" }
+        }
+      }
+    },
+    "/tickets": {
+      "get": {
+        "summary": "Get Support Tickets",
+        "description": "Role-scoped: Authors receive only their own tickets; Admins receive all with multi-dimensional filtering",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "priority", "in": "query", "schema": { "type": "string" } },
+          { "name": "sortBy", "in": "query", "schema": { "type": "string", "enum": ["urgent", "oldest_unresolved", "newest"] } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Tickets array" }
+        }
+      },
+      "post": {
+        "summary": "Submit a Support Ticket (Author)",
+        "description": "Triggers AI auto-classification, priority scoring, and Knowledge Base response drafting",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "book_id": { "type": "string" },
+                  "subject": { "type": "string" },
+                  "description": { "type": "string" },
+                  "attachments": { "type": "array" }
+                },
+                "required": ["subject", "description"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Ticket created with AI classification and draft" }
+        }
+      }
+    },
+    "/tickets/stats/summary": {
+      "get": {
+        "summary": "Admin KPI Summary Stats",
+        "responses": {
+          "200": { "description": "Counts of total, open, in progress, resolved, critical, and category breakdown" }
+        }
+      }
+    },
+    "/tickets/{id}": {
+      "get": {
+        "summary": "Get Ticket by ID",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "Detailed ticket record" },
+          "403": { "description": "Forbidden if author does not own ticket" },
+          "404": { "description": "Ticket not found" }
+        }
+      },
+      "patch": {
+        "summary": "Update Ticket (Admin)",
+        "description": "Admins can update status, override category, override priority, or assign ticket",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": { "type": "string", "enum": ["Open", "In Progress", "Resolved", "Closed"] },
+                  "category": { "type": "string" },
+                  "priority": { "type": "string", "enum": ["Critical", "High", "Medium", "Low"] },
+                  "assigned_to": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Ticket updated" }
+        }
+      }
+    },
+    "/tickets/{id}/messages": {
+      "post": {
+        "summary": "Post Response or Follow-up Message",
+        "description": "Appends message, triggers real-time WebSocket event, and updates status if requested",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": { "type": "string" },
+                  "is_ai_assisted": { "type": "boolean" },
+                  "update_status": { "type": "string" }
+                },
+                "required": ["content"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Message posted" }
+        }
+      }
+    },
+    "/tickets/{id}/internal-notes": {
+      "post": {
+        "summary": "Add Internal Note (Admin Only)",
+        "description": "Appends private operational note invisible to author",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": { "type": "string" }
+                },
+                "required": ["note"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Internal note created" }
+        }
+      }
+    },
+    "/tickets/{id}/ai-draft": {
+      "post": {
+        "summary": "Regenerate AI Draft Response (Admin Only)",
+        "description": "Regenerates draft using updated ticket context and BookLeaf policies",
+        "responses": {
+          "200": { "description": "New draft response returned" }
+        }
+      }
+    }
+  }
+}
