@@ -68,6 +68,13 @@ const PRIORITY_OPTIONS = [
 
 const PRIORITY_OVERRIDE_OPTIONS = PRIORITY_OPTIONS.filter((p) => p.value !== "All");
 
+const DATE_OPTIONS = [
+  { value: "All", label: "All Dates" },
+  { value: "today", label: "Today" },
+  { value: "7days", label: "Past 7 Days" },
+  { value: "30days", label: "Past 30 Days" }
+];
+
 const SORT_OPTIONS = [
   { value: "urgent", label: "Urgency & Severity First" },
   { value: "oldest_unresolved", label: "Oldest Unresolved" },
@@ -109,9 +116,37 @@ export function AdminDashboard({ currentUser, setToast: externalSetToast }) {
   const [statusFilter, setStatusFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [priorityFilter, setPriorityFilter] = useState("All");
+  const [dateFilter, setDateFilter] = useState("All");
   const [sortBy, setSortBy] = useState("urgent");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  const sortedTickets = React.useMemo(() => {
+    const priorityWeight = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+    return [...tickets].sort((a, b) => {
+      if (sortBy === "urgent") {
+        const weightA = priorityWeight[a.priority] || 0;
+        const weightB = priorityWeight[b.priority] || 0;
+        if (weightB !== weightA) return weightB - weightA;
+        // Same priority: newest ticket is ALWAYS first
+        const timeA = new Date(a.createdAt || 0).getTime();
+        const timeB = new Date(b.createdAt || 0).getTime();
+        return timeB - timeA;
+      }
+      if (sortBy === "oldest_unresolved") {
+        const isUnresolvedA = a.status === "Open" || a.status === "In Progress";
+        const isUnresolvedB = b.status === "Open" || b.status === "In Progress";
+        if (isUnresolvedA !== isUnresolvedB) return isUnresolvedB ? 1 : -1;
+        const timeA = new Date(a.createdAt || 0).getTime();
+        const timeB = new Date(b.createdAt || 0).getTime();
+        return timeA - timeB;
+      }
+      // default: newest first
+      const timeA = new Date(a.createdAt || 0).getTime();
+      const timeB = new Date(b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
+  }, [tickets, sortBy]);
 
   // Triage Drawer State
   const [replyMessage, setReplyMessage] = useState("");
@@ -148,6 +183,7 @@ export function AdminDashboard({ currentUser, setToast: externalSetToast }) {
       if (statusFilter !== "All") params.append("status", statusFilter);
       if (categoryFilter !== "All") params.append("category", categoryFilter);
       if (priorityFilter !== "All") params.append("priority", priorityFilter);
+      if (dateFilter !== "All") params.append("dateRange", dateFilter);
       if (sortBy) params.append("sortBy", sortBy);
       if (debouncedSearch.trim()) params.append("search", debouncedSearch.trim());
 
@@ -176,7 +212,7 @@ export function AdminDashboard({ currentUser, setToast: externalSetToast }) {
     } else {
       fetchQueue(false);
     }
-  }, [statusFilter, categoryFilter, priorityFilter, sortBy, debouncedSearch]);
+  }, [statusFilter, categoryFilter, priorityFilter, dateFilter, sortBy, debouncedSearch]);
 
   // Real-time socket listeners (mounted once)
   useEffect(() => {
@@ -1146,6 +1182,13 @@ export function AdminDashboard({ currentUser, setToast: externalSetToast }) {
             onChange={setPriorityFilter}
             options={PRIORITY_OPTIONS}
           />
+
+          {/* Date Filter */}
+          <CustomSelect
+            value={dateFilter}
+            onChange={setDateFilter}
+            options={DATE_OPTIONS}
+          />
         </div>
 
         {/* Sort criteria */}
@@ -1167,7 +1210,7 @@ export function AdminDashboard({ currentUser, setToast: externalSetToast }) {
             <div className="w-7 h-7 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
             <span>Loading support queue...</span>
           </div>
-        ) : tickets.length === 0 ? (
+        ) : sortedTickets.length === 0 ? (
           <div className="p-12 text-center rounded-2xl glass-card border border-slate-800 animate-in fade-in duration-150">
             <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
             <div className="text-sm font-semibold text-white">Queue is clear!</div>
@@ -1176,7 +1219,7 @@ export function AdminDashboard({ currentUser, setToast: externalSetToast }) {
             </div>
           </div>
         ) : (
-          tickets.map((t) => {
+          sortedTickets.map((t) => {
             const isCritical = t.priority === "Critical";
             const isUnresolvedOld = (t.status === "Open" || t.status === "In Progress") && isCritical;
 

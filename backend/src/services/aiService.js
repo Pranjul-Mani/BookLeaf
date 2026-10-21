@@ -2,7 +2,7 @@ import { BOOKLEAF_KNOWLEDGE_BASE, getContextForCategory } from "./knowledgeBase.
 
 const AI_API_KEY = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY || "";
 const AI_PROVIDER = process.env.AI_PROVIDER || (process.env.GEMINI_API_KEY ? "gemini" : process.env.ANTHROPIC_API_KEY ? "anthropic" : "openai");
-const MODEL_NAME = process.env.AI_MODEL || (AI_PROVIDER === "gemini" ? "gemini-1.5-flash" : AI_PROVIDER === "anthropic" ? "claude-3-haiku-20240307" : "gpt-4o-mini");
+const MODEL_NAME = process.env.AI_MODEL || (AI_PROVIDER === "gemini" ? "gemini-3.5-flash" : AI_PROVIDER === "anthropic" ? "claude-3-haiku-20240307" : "gpt-4o-mini");
 
 /**
  * Intelligent fallback classification based on domain keywords and intents

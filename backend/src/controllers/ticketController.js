@@ -141,7 +141,7 @@ export async function createTicket(req, res) {
 
 export async function getTickets(req, res) {
   try {
-    const { status, category, priority, sortBy, search } = req.query;
+    const { status, category, priority, sortBy, search, dateRange } = req.query;
     const filter = {};
 
     // Role-based scoping: Authors see only their own tickets; admins see all
@@ -153,6 +153,20 @@ export async function getTickets(req, res) {
     if (category && category !== "All") filter.category = category;
     if (priority && priority !== "All") filter.priority = priority;
 
+    if (dateRange && dateRange !== "All") {
+      const now = new Date();
+      if (dateRange === "today") {
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        filter.createdAt = { $gte: startOfDay };
+      } else if (dateRange === "7days") {
+        const past7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        filter.createdAt = { $gte: past7Days };
+      } else if (dateRange === "30days") {
+        const past30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        filter.createdAt = { $gte: past30Days };
+      }
+    }
+
     if (search) {
       filter.$or = [
         { ticket_number: { $regex: search, $options: "i" } },
@@ -162,22 +176,54 @@ export async function getTickets(req, res) {
       ];
     }
 
-    let sortCriteria = { createdAt: -1 };
-    if (sortBy === "oldest_unresolved") {
-      // Prioritize Open / In Progress first, then oldest createdAt
-      sortCriteria = { status: -1, createdAt: 1 };
-    } else if (sortBy === "urgent") {
-      sortCriteria = { "ai_priority_score.urgency_score": -1, createdAt: 1 };
-    }
-
-    let query = Ticket.find(filter).sort(sortCriteria);
+    let query = Ticket.find(filter).sort({ createdAt: -1 });
 
     // If author, omit internal notes from projection for privacy
     if (req.user.role === "author") {
       query = query.select("-internal_notes");
     }
 
-    const tickets = await query.exec();
+    let tickets = await query.exec();
+
+    // Priority tier ranking map
+    const priorityWeight = {
+      Critical: 4,
+      High: 3,
+      Medium: 2,
+      Low: 1
+    };
+
+    if (sortBy === "urgent") {
+      tickets.sort((a, b) => {
+        const weightA = priorityWeight[a.priority] || 0;
+        const weightB = priorityWeight[b.priority] || 0;
+        if (weightB !== weightA) {
+          return weightB - weightA; // Critical (4) > High (3) > Medium (2) > Low (1)
+        }
+        // Within the exact same priority, newest ticket is ALWAYS first
+        const timeA = new Date(a.createdAt || 0).getTime();
+        const timeB = new Date(b.createdAt || 0).getTime();
+        return timeB - timeA;
+      });
+    } else if (sortBy === "oldest_unresolved") {
+      tickets.sort((a, b) => {
+        const isUnresolvedA = a.status === "Open" || a.status === "In Progress";
+        const isUnresolvedB = b.status === "Open" || b.status === "In Progress";
+        if (isUnresolvedA !== isUnresolvedB) {
+          return isUnresolvedB ? 1 : -1; // Unresolved tickets first
+        }
+        const timeA = new Date(a.createdAt || 0).getTime();
+        const timeB = new Date(b.createdAt || 0).getTime();
+        return timeA - timeB;
+      });
+    } else {
+      // Default / newest
+      tickets.sort((a, b) => {
+        const timeA = new Date(a.createdAt || 0).getTime();
+        const timeB = new Date(b.createdAt || 0).getTime();
+        return timeB - timeA;
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -254,6 +300,10 @@ export async function updateTicket(req, res) {
     if (priority && priority !== ticket.priority) {
       ticket.priority = priority;
       ticket.is_priority_overridden = true;
+      const scoreMap = { Critical: 95, High: 75, Medium: 50, Low: 25 };
+      if (!ticket.ai_priority_score) ticket.ai_priority_score = {};
+      ticket.ai_priority_score.priority = priority;
+      ticket.ai_priority_score.urgency_score = scoreMap[priority] || 50;
     }
 
     if (assigned_to !== undefined) {

@@ -9,7 +9,7 @@
 
 In self-publishing, author satisfaction hinges on transparent royalties, clear production tracking, and rapid query resolution. This project solves that operational bottleneck through a **dual-portal architecture**:
 
-1. **Author Self-Service Portal**: Gives authors complete visibility into book catalog statuses, royalty calculations (80/20 net profit model with quarterly rollover alerts), real-time ticket creation, and live chat with support agents.
+1. **Author Self-Service Portal**: Gives authors complete visibility into book catalog statuses, royalty calculations, real-time ticket creation, and live chat with support agents.
 2. **Admin Operations Triage Portal**: Equips the operations team with a high-throughput ticket queue, multi-criteria filtering, automated AI classification & priority scoring, domain-grounded editable response drafts, and private internal notes.
 
 ### 🌟 Key Highlights & Engineering Features
@@ -199,6 +199,32 @@ The project includes complete OpenAPI 3.0 documentation at [`docs/swagger.json`]
    - Author access is restricted at both the route middleware level and database query level. Authors cannot view other authors' books, queries, or private operational notes.
 4. **Instant Evaluation Readiness**:
    - Recruiters can evaluate all workflows within minutes using the 1-click persona switchers and pre-seeded database.
+
+---
+
+## 🤖 LLM Model Choice & Justification
+
+Per assignment requirements (item 5 on Model Choice), here is the rationale for our LLM provider selection:
+- **Primary LLM Provider — Google Gemini (`gemini-3.5-flash` / `gemini-3.5-flash-lite`):**
+  - **Reasoning**: Outstanding latency-to-cost ratio, fast time-to-first-token for customer support drafting, strong JSON structured output fidelity, and an accessible free tier for evaluator testing without credit card barriers.
+  - **Fallback Provider — OpenAI (`gpt-4o-mini`) & Anthropic (`claude-3-haiku`):**
+    - Seamlessly swappable via `AI_PROVIDER` and `AI_MODEL` environment variables. `gpt-4o-mini` was tested for its precision with tabular policy numbers, and `claude-3-haiku` for its naturally empathetic conversational tone.
+  - **Deterministic Knowledge Engine (Offline Fallback):**
+    - To protect against upstream API provider outages, rate-limiting (HTTP 429), or missing API keys, we engineered an in-house rule-based knowledge engine that formats responses exactly matching BookLeaf operational specifications.
+
+---
+
+## ⚠️ Known Limitations & Future Improvements
+
+1. **Local Simulated File Uploads**:
+   - *Current State*: File attachments in the ticket creation and triage views support full file selection, base64 thumbnail rendering, and drag-and-drop previews.
+   - *Production Improvement*: Direct-to-S3 presigned multipart upload URLs with virus scanning (ClamAV) and CDN caching via CloudFront.
+2. **Asynchronous Job Worker for High Volume**:
+   - *Current State*: AI triage and priority scoring are initiated asynchronously within the Node event loop using background promises.
+   - *Production Improvement*: Migrate background execution to Redis-backed message queues (BullMQ/Kafka) with dedicated worker nodes and exponential backoff retry policies.
+3. **Semantic Hybrid Search (Vector DB)**:
+   - *Current State*: Keyword-based context pruning (`getContextForCategory`) retrieves exact policy slices from `knowledgeBase.js`.
+   - *Production Improvement*: Integrate pgvector or Pinecone for semantic vector search over past resolved tickets and multi-page publishing agreements.
 
 ---
 
