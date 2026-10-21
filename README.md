@@ -44,6 +44,9 @@ npm run dev
 - **Backend REST API**: [http://localhost:5000/api](http://localhost:5000/api)
 - **API Health Check**: [http://localhost:5000/api/health](http://localhost:5000/api/health)
 
+> [!NOTE]
+> **Note on Free LLM API Performance**: Since the demo is configured with free-tier LLM APIs (e.g., Google Gemini free tier), upstream model responses may occasionally take a few seconds due to provider rate-limiting and cold starts. To maintain a smooth experience, all AI classifications and draft response generations are executed asynchronously in the background, updating the UI dynamically in real time via WebSockets.
+
 *(Optional: An `.env` file is pre-configured in `backend/.env`. You can optionally add `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `ANTHROPIC_API_KEY` for live model inference, or leave it blank to use the built-in domain AI engine).*
 
 ---
@@ -186,8 +189,9 @@ The project includes complete OpenAPI 3.0 documentation at [`docs/swagger.json`]
 
 ## 💡 Key Design & Architectural Highlights
 
-1. **Zero-Failure AI Graceful Degradation**:
+1. **Zero-Failure AI Graceful Degradation & Asynchronous Triage**:
    - Built with dual AI engines: an external LLM connector (OpenAI / Gemini / Anthropic) plus an offline domain knowledge engine.
+   - **Free-Tier LLM Latency Note**: Free-tier model APIs can experience cold starts and provider-side queueing; all AI operations execute asynchronously in the background so authors and operations staff can submit and navigate without delays.
    - If an API key is missing, invalid, or rate-limited, the system **never crashes or hangs**. It seamlessly falls back to exact BookLeaf operational benchmarks.
 2. **Context-Optimized Token Usage**:
    - Rather than dumping the entire book database or operations manual into the prompt, the system dynamically selects only the relevant policy slice (`getContextForCategory`), saving **~70% on token overhead**.
