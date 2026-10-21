@@ -31,6 +31,7 @@ import {
   Flame
 } from "lucide-react";
 import { CustomSelect } from "../common/CustomSelect";
+import { formatDate, formatDateTime } from "../../utils/dateUtils";
 
 const STATUS_OPTIONS = [
   { value: "All", label: "All Statuses" },
@@ -465,7 +466,7 @@ export function AdminDashboard({ currentUser }) {
             <span>•</span>
             <span className="flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
-              Created {new Date(selectedTicket.createdAt).toLocaleString()}
+              Created {formatDateTime(selectedTicket.createdAt)}
             </span>
           </div>
         </div>
@@ -586,7 +587,7 @@ export function AdminDashboard({ currentUser }) {
                               )}
                             </span>
                             <span className="text-[11px]">
-                              {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(msg.created_at).toLocaleDateString()}
+                              {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {formatDate(msg.created_at)}
                             </span>
                           </div>
 
@@ -845,7 +846,7 @@ export function AdminDashboard({ currentUser }) {
                           <UserCheck className="w-3.5 h-3.5" /> {n.author_name} ({n.author_email})
                         </span>
                         <span className="text-[11px] font-mono">
-                          {new Date(n.created_at).toLocaleString()}
+                          {formatDateTime(n.created_at)}
                         </span>
                       </div>
                       <div className="text-slate-200 mt-1">{n.note}</div>
@@ -1069,7 +1070,7 @@ export function AdminDashboard({ currentUser }) {
                     <span>•</span>
                     <span className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
-                      {new Date(t.createdAt).toLocaleDateString()} at {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatDateTime(t.createdAt)}
                     </span>
                   </div>
                 </div>

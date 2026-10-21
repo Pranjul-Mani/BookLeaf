@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
-import { getSocket } from "../services/socket";
 import {
   BookOpen,
   ShieldAlert,
@@ -15,28 +14,11 @@ import { ThemeToggle } from "./ThemeToggle";
 
 export function Navbar({ activeTab, setActiveTab }) {
   const { user, logout, quickSwitch, demoUsers, isAdmin, isAuthor } = useAuth();
-  const [isConnected, setIsConnected] = useState(false);
   const [showSwitchMenu, setShowSwitchMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const switchMenuRef = useRef(null);
   const userMenuRef = useRef(null);
-
-  useEffect(() => {
-    const socket = getSocket();
-    setIsConnected(socket.connected);
-
-    const onConnect = () => setIsConnected(true);
-    const onDisconnect = () => setIsConnected(false);
-
-    socket.on("connect", onConnect);
-    socket.on("disconnect", onDisconnect);
-
-    return () => {
-      socket.off("connect", onConnect);
-      socket.off("disconnect", onDisconnect);
-    };
-  }, []);
 
   // Close menus when clicking anywhere else or pressing Escape
   useEffect(() => {
@@ -89,15 +71,9 @@ export function Navbar({ activeTab, setActiveTab }) {
                     <ShieldAlert className="w-3 h-3" /> Ops & Triage Center
                   </span>
                 ) : (
-                  <>
-                    <span className="text-teal-400 font-medium flex items-center gap-1">
-                      <UserCheck className="w-3 h-3" /> Author Portal
-                    </span>
-                    <span>•</span>
-                    <span className="text-slate-400 font-mono text-[11px]">
-                      {user?.author_id || "Author"}
-                    </span>
-                  </>
+                  <span className="text-teal-400 font-medium flex items-center gap-1">
+                    <UserCheck className="w-3 h-3" /> Author Portal
+                  </span>
                 )}
               </div>
             </div>
@@ -142,21 +118,6 @@ export function Navbar({ activeTab, setActiveTab }) {
 
           {/* Right Controls: Real-time status, Demo switch, Profile */}
           <div className="flex items-center gap-3">
-            {/* Real-time Indicator - Hidden for Admin */}
-            {!isAdmin && (
-              <div
-                className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono border ${
-                  isConnected
-                    ? "bg-emerald-950/60 border-emerald-800 text-emerald-400"
-                    : "bg-rose-950/60 border-rose-800 text-rose-400"
-                }`}
-                title={isConnected ? "Real-time WebSocket connected" : "Connecting..."}
-              >
-                <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-400 animate-pulse" : "bg-rose-400"}`} />
-                <span className="text-[11px]">{isConnected ? "Live Sync" : "Connecting"}</span>
-              </div>
-            )}
-
             {/* Theme Toggle Button */}
             <ThemeToggle showLabel={false} />
 

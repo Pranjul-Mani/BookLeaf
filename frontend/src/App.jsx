@@ -41,12 +41,9 @@ function MainContent() {
       {/* Footer - Hidden for admin login */}
       {!isAdmin && (
         <footer className="border-t border-slate-900 bg-slate-950/80 py-6 text-center text-xs text-slate-400 transition-colors duration-200">
-          <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="max-w-7xl mx-auto px-4 flex items-center justify-center">
             <div>
               <strong className="text-slate-300">BookLeaf Publishing</strong> • Author Support & Communication Portal
-            </div>
-            <div className="text-[11px] font-mono text-slate-400">
-              Node.js (Express) + MongoDB + React + Tailwind CSS + Socket.io + AI Engine
             </div>
           </div>
         </footer>

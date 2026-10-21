@@ -14,12 +14,12 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, "../.env") });
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/bookleaf";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/bookleaf";
 
 async function seedDatabase() {
   try {
-    console.log(`[Seed] Connecting to MongoDB: ${MONGO_URI}...`);
-    await mongoose.connect(MONGO_URI);
+    console.log(`[Seed] Connecting to MongoDB: ${MONGODB_URI}...`);
+    await mongoose.connect(MONGODB_URI);
     console.log("[Seed] Connected successfully.");
 
     // Clear existing collections

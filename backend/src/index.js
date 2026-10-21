@@ -59,12 +59,12 @@ app.use((err, req, res, next) => {
 
 // Database & Server Startup
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/bookleaf";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/bookleaf";
 
 async function startServer() {
   try {
-    await mongoose.connect(MONGO_URI);
-    console.log(`[Database] Connected successfully to MongoDB at ${MONGO_URI}`);
+    await mongoose.connect(MONGODB_URI);
+    console.log(`[Database] Connected successfully to MongoDB at ${MONGODB_URI}`);
 
     server.listen(PORT, () => {
       console.log(`[BookLeaf Server] Running on http://localhost:${PORT}`);

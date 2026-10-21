@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { api } from "../../services/api";
 import { getSocket } from "../../services/socket";
 import { TicketConversationModal } from "../TicketConversationModal";
 import { CustomSelect } from "../common/CustomSelect";
+import { formatDate } from "../../utils/dateUtils";
 import { 
   Book, 
   Coins, 
@@ -41,6 +42,45 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
   const [attachments, setAttachments] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState("");
+
+  const [readCounts, setReadCounts] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`bookleaf_read_tickets_${currentUser?.author_id || currentUser?._id}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  const selectedTicketIdRef = useRef(selectedTicketId);
+  useEffect(() => {
+    selectedTicketIdRef.current = selectedTicketId;
+  }, [selectedTicketId]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`bookleaf_read_tickets_${currentUser?.author_id || currentUser?._id}`);
+      setReadCounts(saved ? JSON.parse(saved) : {});
+    } catch (e) {
+      setReadCounts({});
+    }
+  }, [currentUser]);
+
+  const handleOpenTicket = (ticketId) => {
+    const ticket = tickets.find((t) => t._id === ticketId);
+    const count = ticket?.messages?.length || 0;
+    setReadCounts((prev) => {
+      const updated = { ...prev, [ticketId]: count };
+      try {
+        localStorage.setItem(
+          `bookleaf_read_tickets_${currentUser?.author_id || currentUser?._id}`,
+          JSON.stringify(updated)
+        );
+      } catch (e) {}
+      return updated;
+    });
+    setSelectedTicketId(ticketId);
+  };
 
   const loadData = async () => {
     try {
@@ -92,6 +132,21 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
           return t;
         })
       );
+
+      // If author has this ticket open right now, mark it read immediately
+      if (selectedTicketIdRef.current === payload.ticketId) {
+        setReadCounts((prev) => {
+          const currentCount = (prev[payload.ticketId] || 0) + 1;
+          const updated = { ...prev, [payload.ticketId]: currentCount };
+          try {
+            localStorage.setItem(
+              `bookleaf_read_tickets_${currentUser?.author_id || currentUser?._id}`,
+              JSON.stringify(updated)
+            );
+          } catch (e) {}
+          return updated;
+        });
+      }
     };
 
     socket.on("ticket:created", handleTicketCreated);
@@ -104,6 +159,12 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
       socket.off("ticket:messageAdded", handleMessageAdded);
     };
   }, [currentUser]);
+
+  useEffect(() => {
+    if (activeTab !== "tickets") {
+      setSelectedTicketId(null);
+    }
+  }, [activeTab]);
 
   const handleSubmitQuery = async (e) => {
     e.preventDefault();
@@ -128,7 +189,7 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
       // Reload tickets and switch to tickets tab
       setTimeout(() => {
         setActiveTab("tickets");
-        setSelectedTicketId(data.ticket._id);
+        handleOpenTicket(data.ticket._id);
       }, 1200);
     } catch (err) {
       alert("Error submitting query: " + err.message);
@@ -158,103 +219,101 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* Author Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl glass-panel border border-slate-800 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-40 bg-brand-500/10 blur-[80px] pointer-events-none" />
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono font-bold text-brand-400 bg-brand-950/80 px-2 py-0.5 rounded border border-brand-800">
-              {currentUser.author_id}
-            </span>
-            <span className="text-xs text-slate-400">Author Portal • Joined {currentUser.joined_date || "2023"}</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
-            Welcome back, {currentUser.name}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
-            Track your book sales, quarterly royalty payouts, and communicate directly with the BookLeaf publishing and production teams.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setActiveTab("new-ticket")}
-            className="px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-gradient-to-r from-brand-600 to-teal-500 hover:from-brand-500 hover:to-teal-400 text-white shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all"
-          >
-            <Sparkles className="w-4 h-4" />
-            Raise Support Query
-          </button>
-        </div>
-      </div>
-
-      {/* Aggregate Royalty & Production Stats */}
-      {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-5 rounded-2xl glass-card border border-slate-800">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-              <span>Total Books</span>
-              <Book className="w-4 h-4 text-brand-400" />
-            </div>
-            <div className="text-2xl font-black text-white mt-2">
-              {summary.totalBooks}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5">
-              <span className="text-emerald-400 font-semibold">{summary.publishedBooks} Live</span>
-              <span>•</span>
-              <span className="text-amber-400 font-semibold">{summary.inProductionBooks} In Production</span>
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl glass-card border border-slate-800">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-              <span>Total Copies Sold</span>
-              <TrendingUp className="w-4 h-4 text-teal-400" />
-            </div>
-            <div className="text-2xl font-black text-white mt-2">
-              {summary.totalCopiesSold.toLocaleString("en-IN")}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-1">
-              Across Amazon, Flipkart & Store
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl glass-card border border-slate-800">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-              <span>Total Royalty Earned</span>
-              <Coins className="w-4 h-4 text-emerald-400" />
-            </div>
-            <div className="text-2xl font-black text-emerald-400 mt-2">
-              ₹{summary.totalRoyaltyEarned.toLocaleString("en-IN")}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-1">
-              Paid: ₹{summary.royaltyPaid.toLocaleString("en-IN")}
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl glass-card border border-slate-800">
-            <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-              <span>Royalty Pending</span>
-              <DollarSign className="w-4 h-4 text-amber-400" />
-            </div>
-            <div className="text-2xl font-black text-amber-400 mt-2">
-              ₹{summary.royaltyPending.toLocaleString("en-IN")}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-1">
-              {summary.royaltyPending >= 1000 ? (
-                <span className="text-emerald-400 font-medium">Meets ₹1k payout threshold</span>
-              ) : summary.royaltyPending > 0 ? (
-                <span className="text-amber-400/90">Rolls over (min ₹1,000 threshold)</span>
-              ) : (
-                <span className="text-slate-400">All payouts cleared</span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Main Tab Views */}
       {activeTab === "books" && (
-        <div className="space-y-6">
+        <div className="space-y-8">
+          {/* Author Header Banner */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl glass-panel border border-slate-800 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-80 h-40 bg-brand-500/10 blur-[80px] pointer-events-none" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">Joined {formatDate(currentUser.joined_date) || ""}</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
+                Welcome back, {currentUser.name}
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
+                Track your book sales, quarterly royalty payouts, and communicate directly with the BookLeaf publishing and production teams.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setActiveTab("new-ticket")}
+                className="px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-gradient-to-r from-brand-600 to-teal-500 hover:from-brand-500 hover:to-teal-400 text-white shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all"
+              >
+                <Sparkles className="w-4 h-4" />
+                Raise Support Query
+              </button>
+            </div>
+          </div>
+
+          {/* Aggregate Royalty & Production Stats */}
+          {summary && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-5 rounded-2xl glass-card border border-slate-800">
+                <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
+                  <span>Total Books</span>
+                  <Book className="w-4 h-4 text-brand-400" />
+                </div>
+                <div className="text-2xl font-black text-white mt-2">
+                  {summary.totalBooks}
+                </div>
+                <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5">
+                  <span className="text-emerald-400 font-semibold">{summary.publishedBooks} Live</span>
+                  <span>•</span>
+                  <span className="text-amber-400 font-semibold">{summary.inProductionBooks} In Production</span>
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl glass-card border border-slate-800">
+                <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
+                  <span>Total Copies Sold</span>
+                  <TrendingUp className="w-4 h-4 text-teal-400" />
+                </div>
+                <div className="text-2xl font-black text-white mt-2">
+                  {summary.totalCopiesSold.toLocaleString("en-IN")}
+                </div>
+                <div className="text-[11px] text-slate-400 mt-1">
+                  Across Amazon, Flipkart & Store
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl glass-card border border-slate-800">
+                <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
+                  <span>Total Royalty Earned</span>
+                  <Coins className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="text-2xl font-black text-emerald-400 mt-2">
+                  ₹{summary.totalRoyaltyEarned.toLocaleString("en-IN")}
+                </div>
+                <div className="text-[11px] text-slate-400 mt-1">
+                  Paid: ₹{summary.royaltyPaid.toLocaleString("en-IN")}
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl glass-card border border-slate-800">
+                <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
+                  <span>Royalty Pending</span>
+                  <DollarSign className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="text-2xl font-black text-amber-400 mt-2">
+                  ₹{summary.royaltyPending.toLocaleString("en-IN")}
+                </div>
+                <div className="text-[11px] text-slate-400 mt-1">
+                  {summary.royaltyPending >= 1000 ? (
+                    <span className="text-emerald-400 font-medium">Meets ₹1k payout threshold</span>
+                  ) : summary.royaltyPending > 0 ? (
+                    <span className="text-amber-400/90">Rolls over (min ₹1,000 threshold)</span>
+                  ) : (
+                    <span className="text-slate-400">All payouts cleared</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-white">My Published & In-Production Books</h2>
@@ -356,7 +415,7 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
                         {b.publication_date && (
                           <span className="text-slate-400 flex items-center gap-1 ml-auto">
                             <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                            Live since: {b.publication_date}
+                            Live since: {formatDate(b.publication_date)}
                           </span>
                         )}
                       </div>
@@ -379,7 +438,7 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
                     <div className="mt-5 pt-4 border-t border-slate-800 flex items-center justify-between">
                       <span className="text-[11px] text-slate-400">
                         {b.last_royalty_payout_date 
-                          ? `Last payout disbursed: ${b.last_royalty_payout_date}` 
+                          ? `Last payout disbursed: ${formatDate(b.last_royalty_payout_date)}` 
                           : "No previous payout recorded"}
                       </span>
                       <button
@@ -399,7 +458,8 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
             </div>
           )}
         </div>
-      )}
+      </div>
+    )}
 
       {/* Submit Support Query Tab */}
       {activeTab === "new-ticket" && (
@@ -425,7 +485,7 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
 
           <form onSubmit={handleSubmitQuery} className="space-y-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-semibold text-slate-300  tracking-wider mb-2">
                 Which book is this query regarding?
               </label>
               <CustomSelect
@@ -445,7 +505,7 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-semibold text-slate-300  tracking-wider mb-2">
                 Subject Line
               </label>
               <input
@@ -459,7 +519,7 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-semibold text-slate-300  tracking-wider mb-2">
                 Detailed Description & Context
               </label>
               <textarea
@@ -474,7 +534,7 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
 
             {/* File Attachment Support (UI Only per specification) */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-semibold text-slate-300  tracking-wider mb-2">
                 Attachments (Optional - Proof photos, statements, invoices)
               </label>
               <div className="border-2 border-dashed border-slate-700 hover:border-brand-500/50 rounded-xl p-5 text-center transition-colors bg-slate-900/40">
@@ -541,65 +601,70 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
 
       {/* My Tickets Tab */}
       {activeTab === "tickets" && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold text-white">My Support Tickets</h2>
-              <p className="text-xs text-slate-400">
-                Live view of all queries submitted by you. Responses from BookLeaf ops sync automatically without refreshing.
-              </p>
-            </div>
-
-            {/* Filter buttons */}
-            <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
-              {["All", "Open", "In Progress", "Resolved", "Closed"].map((st) => (
-                <button
-                  key={st}
-                  onClick={() => setTicketFilter(st)}
-                  className={`px-3 py-1 rounded-lg transition-colors ${
-                    ticketFilter === st
-                      ? "bg-brand-600 text-white font-medium shadow-sm"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  {st}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {filteredTickets.length === 0 ? (
-            <div className="p-12 text-center rounded-2xl glass-card border border-slate-800">
-              <MessageSquare className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-              <div className="text-sm font-semibold text-white">No tickets found</div>
-              <div className="text-xs text-slate-400 mt-1">
-                {ticketFilter !== "All"
-                  ? `No tickets currently with status "${ticketFilter}".`
-                  : "You haven't submitted any queries yet."}
+        selectedTicketId ? (
+          <TicketConversationModal
+            ticketId={selectedTicketId}
+            onClose={() => setSelectedTicketId(null)}
+            currentUser={currentUser}
+          />
+        ) : (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-white">My Support Tickets</h2>
+                <p className="text-xs text-slate-400">
+                  Live view of all queries submitted by you. Responses from BookLeaf ops sync automatically without refreshing.
+                </p>
               </div>
-              <button
-                onClick={() => setActiveTab("new-ticket")}
-                className="mt-4 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold rounded-xl"
-              >
-                Submit your first query
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredTickets.map((t) => {
-                const statusStyles = {
-                  Open: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-                  "In Progress": "bg-amber-500/10 text-amber-300 border-amber-500/20",
-                  Resolved: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-                  Closed: "bg-slate-800 text-slate-400 border-slate-700"
-                };
 
-                const lastMsg = t.messages?.[t.messages.length - 1];
+              {/* Filter buttons */}
+              <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
+                {["All", "Open", "In Progress", "Resolved", "Closed"].map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => setTicketFilter(st)}
+                    className={`px-3 py-1 rounded-lg transition-colors ${
+                      ticketFilter === st
+                        ? "bg-brand-600 text-white font-medium shadow-sm"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {st}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {filteredTickets.length === 0 ? (
+              <div className="p-12 text-center rounded-2xl glass-card border border-slate-800">
+                <MessageSquare className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                <div className="text-sm font-semibold text-white">No tickets found</div>
+                <div className="text-xs text-slate-400 mt-1">
+                  {ticketFilter !== "All"
+                    ? `No tickets currently with status "${ticketFilter}".`
+                    : "You haven't submitted any queries yet."}
+                </div>
+                <button
+                  onClick={() => setActiveTab("new-ticket")}
+                  className="mt-4 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold rounded-xl"
+                >
+                  Submit your first query
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredTickets.map((t) => {
+                  const statusStyles = {
+                    Open: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+                    "In Progress": "bg-amber-500/10 text-amber-300 border-amber-500/20",
+                    Resolved: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+                    Closed: "bg-slate-800 text-slate-400 border-slate-700"
+                  };
 
                 return (
                   <div
                     key={t._id}
-                    onClick={() => setSelectedTicketId(t._id)}
+                    onClick={() => handleOpenTicket(t._id)}
                     className="p-5 rounded-2xl glass-card border border-slate-800 hover:border-brand-500/50 cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
                   >
                     <div className="space-y-1.5 flex-1">
@@ -622,25 +687,27 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
                       <div className="text-xs text-slate-400 flex items-center gap-2">
                         <span>Book: {t.book_title}</span>
                         <span>•</span>
-                        <span>Created: {new Date(t.createdAt).toLocaleDateString()}</span>
-                        {t.messages?.length > 1 && (
-                          <>
-                            <span>•</span>
-                            <span className="text-teal-400 font-medium">
-                              {t.messages.length} messages
-                            </span>
-                          </>
-                        )}
+                        <span>Created: {formatDate(t.createdAt)}</span>
                       </div>
-
-                      {lastMsg && (
-                        <p className="text-xs text-slate-400 line-clamp-1 italic mt-1">
-                          Last reply ({lastMsg.sender_role}): {lastMsg.content}
-                        </p>
-                      )}
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex sm:flex-col items-start sm:items-end justify-between sm:justify-center gap-2.5 shrink-0">
+                      {(() => {
+                        const lastRead = readCounts[t._id];
+                        const newCount = lastRead !== undefined
+                          ? (t.messages || []).slice(lastRead).filter((m) => m.sender_role === "admin").length
+                          : (t.messages || []).filter((m) => m.sender_role === "admin").length;
+
+                        if (newCount <= 0) return null;
+
+                        return (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-sm animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            {newCount === 1 ? "1 new message came" : `${newCount} new messages came`}
+                          </span>
+                        );
+                      })()}
+
                       <button className="px-3.5 py-1.5 rounded-xl text-xs font-medium bg-slate-900 border border-slate-700 group-hover:border-brand-500 text-slate-200 flex items-center gap-1.5">
                         <span>View Conversation</span>
                         <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
@@ -648,19 +715,11 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Ticket Conversation Modal */}
-      {selectedTicketId && (
-        <TicketConversationModal
-          ticketId={selectedTicketId}
-          onClose={() => setSelectedTicketId(null)}
-          currentUser={currentUser}
-        />
+                })}
+              </div>
+            )}
+          </div>
+        )
       )}
     </div>
   );
