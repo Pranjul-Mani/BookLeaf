@@ -58,8 +58,7 @@ All accounts share the default password: **`password123`**.
 
 | Role | Name | Email | Persona & Business Edge Case Tested |
 |---|---|---|---|
-| **Admin** | Sarah Jenkins | `admin@bookleaf.com` | **Operations Lead**: Full triage queue, filter by SLA / priority, edit AI drafts, post internal notes. |
-| **Admin** | Vikram Mehta | `ops@bookleaf.com` | **Support Specialist**: Ticket resolution & live chat handling. |
+| **Admin** | Test User | `test@bookleaf.com` | **Operations Lead & Admin (Full Access)**: Full triage queue, multi-criteria filtering, override AI category/priority, edit AI draft responses, post private internal notes, and assign tickets. |
 | **Author** | Rohit Kapoor | `rohit.kapoor@email.com` | **Bestseller Author** (1,200+ sold): Active royalty inquiry on *Chronicles of the Soul*. |
 | **Author** | Sneha Kulkarni | `sneha.kulkarni@email.com` | **Production & Catalog Edge Case**: Book in *Cover Design*, active ISBN metadata mismatch query. |
 | **Author** | Kavita Deshmukh | `kavita.deshmukh@email.com` | **Threshold Rollover**: Zero/low royalties under the ₹1,000 payout threshold rolling over to next quarter. |
