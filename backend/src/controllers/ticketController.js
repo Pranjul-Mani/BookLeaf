@@ -84,6 +84,7 @@ export async function createTicket(req, res) {
         token_usage: draftResponse.tokenUsage,
         generated_at: new Date()
       },
+      attachments: attachments || [],
       messages: [
         {
           sender_role: "author",

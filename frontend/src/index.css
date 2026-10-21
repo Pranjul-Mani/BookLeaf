@@ -120,7 +120,7 @@ html.light .bg-slate-950 {
 
 html.light .bg-slate-950\/80,
 html.light .bg-slate-950\/85 {
-  background-color: rgba(15, 23, 42, 0.5); /* backdrop blur dimming */
+  background-color: rgba(15, 23, 42, 0.15); /* subtle translucent backdrop */
 }
 
 html.light .bg-slate-950\/60,
@@ -600,4 +600,29 @@ html.light .navbar-dropdown button:hover {
   background-color: #f1f5f9 !important;
   color: #000000 !important;
 }
+
+/* Image Preview Lightbox Theme Adaptations */
+html.light .image-preview-card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 25px 60px -10px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light .image-preview-header {
+  background-color: #f8fafc !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+html.light .image-preview-title {
+  color: #0f172a !important;
+}
+
+html.light .image-preview-sub {
+  color: #475569 !important;
+}
+
+html.light .image-preview-body {
+  background-color: #f1f5f9 !important;
+}
+
 

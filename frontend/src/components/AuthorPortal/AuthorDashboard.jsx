@@ -25,8 +25,12 @@ import {
   Calendar,
   Layers,
   ArrowUpRight,
-  X
+  X,
+  Eye,
+  Trash2,
+  Image as ImageIcon
 } from "lucide-react";
+import { ImagePreviewModal } from "../common/ImagePreviewModal";
 
 export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
   const [books, setBooks] = useState([]);
@@ -43,6 +47,7 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
   const [attachments, setAttachments] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [createdTicketModal, setCreatedTicketModal] = useState(null);
+  const [previewAttachment, setPreviewAttachment] = useState(null);
 
   const [readCounts, setReadCounts] = useState(() => {
     try {
@@ -201,29 +206,43 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
     }
   };
 
+  const processUploadedFiles = (files) => {
+    const fileList = Array.from(files || []);
+    if (!fileList.length) return;
+
+    fileList.forEach((f) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const newAtt = {
+          name: f.name,
+          size: f.size,
+          file_type: f.type || "application/octet-stream",
+          url: event.target?.result || null
+        };
+        setAttachments((prev) => [...prev, newAtt]);
+      };
+      reader.onerror = () => {
+        const fallbackAtt = {
+          name: f.name,
+          size: f.size,
+          file_type: f.type || "application/octet-stream",
+          url: null
+        };
+        setAttachments((prev) => [...prev, fallbackAtt]);
+      };
+      reader.readAsDataURL(f);
+    });
+  };
+
   const handleSimulatedFileUpload = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    const simulated = files.map((f) => ({
-      name: f.name,
-      size: f.size,
-      file_type: f.type || "application/octet-stream"
-    }));
-    setAttachments((prev) => [...prev, ...simulated]);
+    processUploadedFiles(e.target.files);
     e.target.value = "";
   };
 
   const handleDropFiles = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const files = Array.from(e.dataTransfer.files || []);
-    if (!files.length) return;
-    const simulated = files.map((f) => ({
-      name: f.name,
-      size: f.size,
-      file_type: f.type || "application/octet-stream"
-    }));
-    setAttachments((prev) => [...prev, ...simulated]);
+    processUploadedFiles(e.dataTransfer.files);
   };
 
   const removeAttachment = (index) => {
@@ -570,28 +589,81 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
               </label>
 
               {attachments.length > 0 && (
-                <div className="mt-3 space-y-1.5">
-                  {attachments.map((att, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300"
+                <div className="mt-3 space-y-2">
+                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>Uploaded Attachments ({attachments.length})</span>
+                    <button
+                      type="button"
+                      onClick={() => setAttachments([])}
+                      className="text-slate-500 hover:text-rose-400 transition-colors cursor-pointer lowercase"
                     >
-                      <div className="flex items-center gap-2">
-                        <Paperclip className="w-3.5 h-3.5 text-brand-400" />
-                        <span className="font-medium">{att.name}</span>
-                        <span className="text-[10px] text-slate-500 font-mono">
-                          {Math.round(att.size / 1024)} KB
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeAttachment(idx)}
-                        className="text-slate-500 hover:text-rose-400 text-xs px-2"
+                      clear all
+                    </button>
+                  </div>
+                  {attachments.map((att, idx) => {
+                    const isImg =
+                      att.file_type?.startsWith("image/") ||
+                      (att.url && att.url.startsWith("data:image/")) ||
+                      /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name || "");
+                    return (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:border-slate-700 transition-all group"
                       >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+                        <div className="flex items-center gap-3 min-w-0 pr-2">
+                          {isImg && att.url ? (
+                            <div
+                              onClick={() => setPreviewAttachment(att)}
+                              className="relative w-10 h-10 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 shrink-0 cursor-pointer group/thumb"
+                              title="Click to preview"
+                            >
+                              <img
+                                src={att.url}
+                                alt={att.name}
+                                className="w-full h-full object-cover group-hover/thumb:scale-110 transition-transform"
+                              />
+                              <div className="absolute inset-0 bg-brand-950/40 dark:bg-black/50 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity">
+                                <Eye className="w-3.5 h-3.5 text-white" />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-brand-600 dark:text-brand-400 shrink-0">
+                              <Paperclip className="w-4 h-4" />
+                            </div>
+                          )}
+
+                          <div className="min-w-0">
+                            <span className="font-semibold text-slate-900 dark:text-white block truncate">{att.name}</span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                              {Math.round(att.size / 1024)} KB {isImg ? "• Image" : "• Document"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* View Eye and Delete Trash Icons */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewAttachment(att)}
+                            className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-300 hover:bg-brand-50 dark:hover:bg-brand-500/15 transition-colors cursor-pointer"
+                            title="View attachment"
+                            aria-label="View attachment"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeAttachment(idx)}
+                            className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
+                            title="Delete attachment"
+                            aria-label="Delete attachment"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -820,6 +892,13 @@ export function AuthorDashboard({ activeTab, setActiveTab, currentUser }) {
           </div>
         </div>
       )}
+
+      {/* Lightbox Image Preview Modal */}
+      <ImagePreviewModal
+        isOpen={!!previewAttachment}
+        onClose={() => setPreviewAttachment(null)}
+        attachment={previewAttachment}
+      />
     </div>
   );
 }

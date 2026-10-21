@@ -2,9 +2,12 @@ import { io } from "socket.io-client";
 
 let socketInstance = null;
 
+const RAW_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "";
+const SERVER_URL = RAW_URL ? RAW_URL.replace(/\/+$/, "").replace(/\/api$/, "") : undefined;
+
 export function getSocket() {
   if (!socketInstance) {
-    socketInstance = io({
+    socketInstance = io(SERVER_URL || undefined, {
       transports: ["websocket", "polling"],
       autoConnect: true,
       reconnectionAttempts: 10,

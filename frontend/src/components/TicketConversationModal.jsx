@@ -12,9 +12,11 @@ import {
   Paperclip,
   BookMarked,
   Sparkles,
-  Tag
+  Tag,
+  Eye
 } from "lucide-react";
 import { formatDate } from "../utils/dateUtils";
+import { ImagePreviewModal } from "./common/ImagePreviewModal";
 
 export function TicketConversationModal({ ticketId, onClose, currentUser }) {
   const [ticket, setTicket] = useState(null);
@@ -22,6 +24,7 @@ export function TicketConversationModal({ ticketId, onClose, currentUser }) {
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [previewAttachment, setPreviewAttachment] = useState(null);
   const messagesEndRef = useRef(null);
 
   const fetchTicket = async () => {
@@ -237,7 +240,7 @@ export function TicketConversationModal({ ticketId, onClose, currentUser }) {
                     >
                       {msg.content}
 
-                      {/* Attachments UI (UI only requirement) */}
+                      {/* Attachments UI with View Eye Icon */}
                       {msg.attachments && msg.attachments.length > 0 && (
                         <div className="mt-3 pt-2 border-t border-slate-700/60 space-y-1">
                           {msg.attachments.map((att, aIdx) => (
@@ -250,6 +253,15 @@ export function TicketConversationModal({ ticketId, onClose, currentUser }) {
                               <span className="text-[10px] text-slate-500 ml-auto font-mono">
                                 {att.size ? `${Math.round(att.size / 1024)} KB` : "Attached"}
                               </span>
+                              <button
+                                type="button"
+                                onClick={() => setPreviewAttachment(att)}
+                                className="p-1 rounded hover:bg-slate-700 text-brand-300 hover:text-white transition-colors cursor-pointer"
+                                title="View attachment"
+                                aria-label="View attachment"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -300,6 +312,13 @@ export function TicketConversationModal({ ticketId, onClose, currentUser }) {
           </div>
         </div>
       </div>
+
+      {/* Lightbox Image Preview Modal */}
+      <ImagePreviewModal
+        isOpen={!!previewAttachment}
+        onClose={() => setPreviewAttachment(null)}
+        attachment={previewAttachment}
+      />
     </div>
   );
 }

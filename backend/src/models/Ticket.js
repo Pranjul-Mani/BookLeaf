@@ -22,7 +22,8 @@ const messageSchema = new mongoose.Schema({
     {
       name: String,
       size: Number,
-      file_type: String
+      file_type: String,
+      url: String
     }
   ],
   is_ai_assisted: {
@@ -170,6 +171,14 @@ const ticketSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    attachments: [
+      {
+        name: String,
+        size: Number,
+        file_type: String,
+        url: String
+      }
+    ],
     messages: [messageSchema],
     internal_notes: [internalNoteSchema]
   },

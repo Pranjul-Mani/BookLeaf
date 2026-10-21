@@ -28,9 +28,12 @@ import {
   Copy,
   BookOpen,
   SlidersHorizontal,
-  Flame
+  Flame,
+  Eye,
+  Image as ImageIcon
 } from "lucide-react";
 import { CustomSelect } from "../common/CustomSelect";
+import { ImagePreviewModal } from "../common/ImagePreviewModal";
 import { formatDate, formatDateTime } from "../../utils/dateUtils";
 
 const STATUS_OPTIONS = [
@@ -83,6 +86,7 @@ export function AdminDashboard({ currentUser }) {
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [previewAttachment, setPreviewAttachment] = useState(null);
   const [triageModalOpen, setTriageModalOpen] = useState(false);
 
   // Filters
@@ -453,6 +457,86 @@ export function AdminDashboard({ currentUser }) {
             </div>
           )}
 
+          {/* Uploaded Attachments & Proof Photos Section with View Eye Icon */}
+          {(() => {
+            const allAttachments = [
+              ...(selectedTicket.attachments || []),
+              ...(selectedTicket.messages?.flatMap((m) => m.attachments || []) || [])
+            ].filter(
+              (att, index, self) =>
+                Boolean(att && att.name) &&
+                index === self.findIndex((t) => t.name === att.name && t.size === att.size)
+            );
+
+            if (allAttachments.length === 0) return null;
+
+            return (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <Paperclip className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
+                  <span>Uploaded Attachments & Proof Photos ({allAttachments.length})</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {allAttachments.map((att, idx) => {
+                    const isImg =
+                      att.file_type?.startsWith("image/") ||
+                      (att.url && att.url.startsWith("data:image/")) ||
+                      /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(att.name || "");
+                    return (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-100/90 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500/40 transition-all group text-xs shadow-sm"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                          {isImg && att.url ? (
+                            <div
+                              onClick={() => setPreviewAttachment(att)}
+                              className="relative w-9 h-9 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 shrink-0 cursor-pointer group/thumb"
+                              title="Click to preview image"
+                            >
+                              <img
+                                src={att.url}
+                                alt={att.name}
+                                className="w-full h-full object-cover group-hover/thumb:scale-110 transition-transform"
+                              />
+                              <div className="absolute inset-0 bg-brand-950/40 dark:bg-black/50 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity">
+                                <Eye className="w-3.5 h-3.5 text-white" />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-slate-800 border border-emerald-200 dark:border-slate-700 flex items-center justify-center text-brand-600 dark:text-brand-400 shrink-0">
+                              {isImg ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                            </div>
+                          )}
+
+                          <div className="min-w-0">
+                            <span className="font-semibold text-slate-900 dark:text-white block truncate">{att.name}</span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                              {att.size ? `${Math.round(att.size / 1024)} KB` : "Attached"}{" "}
+                              {isImg ? "• Image" : "• Document"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* View Eye Icon Button */}
+                        <button
+                          type="button"
+                          onClick={() => setPreviewAttachment(att)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-brand-500/10 hover:bg-brand-500/20 text-brand-700 dark:text-brand-300 border border-brand-500/20 hover:border-brand-500/40 transition-all cursor-pointer shrink-0"
+                          title="View image/attachment"
+                          aria-label="View attachment"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>View</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="text-xs text-slate-400 flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-2 border-t border-slate-800">
             <span className="text-slate-200 font-semibold flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-teal-400" />
@@ -594,6 +678,38 @@ export function AdminDashboard({ currentUser }) {
                           <div className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
                             {msg.content}
                           </div>
+
+                          {/* Message Attachments with View Eye Button */}
+                          {msg.attachments && msg.attachments.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-slate-800/80 space-y-1.5">
+                              <div className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+                                <Paperclip className="w-3 h-3 text-brand-400" />
+                                <span>Attachments ({msg.attachments.length})</span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {msg.attachments.map((att, aIdx) => (
+                                  <div
+                                    key={aIdx}
+                                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-950/60 border border-slate-800 text-xs text-slate-300"
+                                  >
+                                    <span className="truncate max-w-[150px] font-medium">{att.name}</span>
+                                    <span className="text-[10px] text-slate-500 font-mono">
+                                      {att.size ? `${Math.round(att.size / 1024)} KB` : ""}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewAttachment(att)}
+                                      className="p-1 rounded hover:bg-brand-50 dark:hover:bg-slate-800 text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors cursor-pointer"
+                                      title="View attachment"
+                                      aria-label="View attachment"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
                           {msg.is_ai_assisted && (
                             <div className="mt-2 text-[10px] text-brand-300 flex items-center gap-1 font-mono">
@@ -880,6 +996,13 @@ export function AdminDashboard({ currentUser }) {
             </div>
           )}
         </div>
+
+        {/* Lightbox Image Preview Modal in Detail View */}
+        <ImagePreviewModal
+          isOpen={!!previewAttachment}
+          onClose={() => setPreviewAttachment(null)}
+          attachment={previewAttachment}
+        />
       </div>
     );
   }
@@ -1101,6 +1224,13 @@ export function AdminDashboard({ currentUser }) {
           })
         )}
       </div>
+
+      {/* Lightbox Image Preview Modal */}
+      <ImagePreviewModal
+        isOpen={!!previewAttachment}
+        onClose={() => setPreviewAttachment(null)}
+        attachment={previewAttachment}
+      />
     </div>
   );
 }

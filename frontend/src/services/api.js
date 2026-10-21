@@ -1,4 +1,6 @@
-const API_BASE = "/api";
+const RAW_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "";
+const CLEAN_BASE = RAW_URL.replace(/\/+$/, "").replace(/\/api$/, "");
+const API_BASE = CLEAN_BASE ? `${CLEAN_BASE}/api` : "/api";
 
 function getHeaders(customHeaders = {}) {
   const token = localStorage.getItem("bookleaf_token");
